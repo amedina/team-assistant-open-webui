@@ -419,7 +419,7 @@ from open_webui.env import (
     ENABLE_OTEL,
     EXTERNAL_PWA_MANIFEST_URL,
     AIOHTTP_CLIENT_SESSION_SSL,
-    # Agent Engine
+    # Team Assistant (Agent Engine)
     ENABLE_AGENT_ENGINE,
     AGENT_ENGINE_PROJECT_ID,
     AGENT_ENGINE_LOCATION,
@@ -610,7 +610,7 @@ app.state.OPENAI_MODELS = {}
 
 ########################################
 #
-# AGENT ENGINE
+# TEAM ASSISTANT (AGENT ENGINE)
 #
 ########################################
 

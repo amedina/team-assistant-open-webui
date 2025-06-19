@@ -46,7 +46,7 @@ class AgentEngineConfig(BaseModel):
 
 @router.get("/config")
 async def get_config(request: Request, user=Depends(get_admin_user)):
-    """Get Agent Engine configuration"""
+    """Get Team Assistant configuration"""
     return {
         "ENABLE_AGENT_ENGINE": request.app.state.config.ENABLE_AGENT_ENGINE,
         "AGENT_ENGINE_PROJECT_ID": request.app.state.config.AGENT_ENGINE_PROJECT_ID,
@@ -63,7 +63,7 @@ async def update_config(
     form_data: AgentEngineConfig, 
     user=Depends(get_admin_user)
 ):
-    """Update Agent Engine configuration"""
+    """Update Team Assistant configuration"""
     request.app.state.config.ENABLE_AGENT_ENGINE = form_data.ENABLE_AGENT_ENGINE
     request.app.state.config.AGENT_ENGINE_PROJECT_ID = form_data.AGENT_ENGINE_PROJECT_ID
     request.app.state.config.AGENT_ENGINE_LOCATION = form_data.AGENT_ENGINE_LOCATION
@@ -140,11 +140,11 @@ async def get_agent_engine_credentials(request: Request):
         log.error(f"Failed to get Agent Engine credentials: {e}")
         raise HTTPException(
             status_code=500,
-            detail="Agent Engine authentication failed. Please check your configuration."
+            detail="Team Assistant authentication failed. Please check your configuration."
         )
 
 async def get_access_token(request: Request) -> str:
-    """Get a fresh access token for Agent Engine API calls"""
+    """Get a fresh access token for Team Assistant API calls"""
     credentials = await get_agent_engine_credentials(request)
     
     # Refresh token if needed
@@ -156,22 +156,22 @@ async def get_access_token(request: Request) -> str:
 
 @router.get("/models")
 async def get_agent_engine_models(request: Request, user=Depends(get_verified_user)):
-    """Register Agent Engine models for the model selector"""
+    """Register Team Assistant models for the model selector"""
     config = request.app.state.config
     
     if not getattr(config, 'ENABLE_AGENT_ENGINE', False):
         return {"data": []}
     
-    # Return single Agent Engine model with crew routing capabilities
+    # Return single Team Assistant model with crew routing capabilities
     models = [{
-        "id": "agent-engine",
-        "name": "Agent Engine",
-        "owned_by": "agent_engine",
+        "id": "team-assistant",
+        "name": "Team Assistant",
+        "owned_by": "team_assistant",
         "object": "model",
         "created": int(time.time()),
         "info": {
             "meta": {
-                "description": "Team Assistant model for the Open WebUI",
+                "description": "AI Team Assistant with intelligent crew routing capabilities",
                 "capabilities": {
                     "streaming": True,
                     "crew_routing": True,
@@ -185,23 +185,23 @@ async def get_agent_engine_models(request: Request, user=Depends(get_verified_us
 
 @router.get("/models/public")
 async def get_agent_engine_models_public(request: Request):
-    """Public Agent Engine models endpoint for testing (no auth required)"""
+    """Public Team Assistant models endpoint for testing (no auth required)"""
     try:
         config = request.app.state.config
         
         if not getattr(config, 'ENABLE_AGENT_ENGINE', False):
-            return {"data": [], "message": "Agent Engine is disabled"}
+            return {"data": [], "message": "Team Assistant is disabled"}
         
-        # Return single Agent Engine model with crew routing capabilities
+        # Return single Team Assistant model with crew routing capabilities
         models = [{
-            "id": "agent-engine",
-            "name": "Agent Engine",
-            "owned_by": "agent_engine",
+            "id": "team-assistant",
+            "name": "Team Assistant",
+            "owned_by": "team_assistant",
             "object": "model",
             "created": int(time.time()),
             "info": {
                 "meta": {
-                    "description": "AI Agent with intelligent crew routing",
+                    "description": "AI Team Assistant with intelligent crew routing",
                     "capabilities": {
                         "streaming": True,
                         "crew_routing": True,
@@ -211,10 +211,10 @@ async def get_agent_engine_models_public(request: Request):
             }
         }]
         
-        return {"data": models, "message": "Agent Engine models generated successfully"}
+        return {"data": models, "message": "Team Assistant models generated successfully"}
         
     except Exception as e:
-        return {"data": [], "error": str(e), "message": "Error generating Agent Engine models"}
+        return {"data": [], "error": str(e), "message": "Error generating Team Assistant models"}
 
 class ConnectionVerificationForm(BaseModel):
     project_id: str
@@ -228,7 +228,7 @@ async def verify_connection(
     form_data: ConnectionVerificationForm, 
     user=Depends(get_admin_user)
 ):
-    """Verify Agent Engine connection and authentication"""
+    """Verify Team Assistant connection and authentication"""
     try:
         # Temporarily set config for verification
         temp_config = {
@@ -260,7 +260,7 @@ async def verify_connection(
         
         return {
             "status": "success",
-            "message": "Agent Engine connection verified successfully",
+            "message": "Team Assistant connection verified successfully",
             "details": {
                 "project_id": form_data.project_id,
                 "location": form_data.location,
@@ -276,7 +276,7 @@ async def verify_connection(
             "details": {"authentication": "invalid_json"}
         }
     except Exception as e:
-        log.error(f"Agent Engine connection verification failed: {e}")
+        log.error(f"Team Assistant connection verification failed: {e}")
         return {
             "status": "error", 
             "message": f"Connection verification failed: {str(e)}",
@@ -288,7 +288,7 @@ async def stream_agent_engine_response(
     agent_request: Dict[str, Any],
     user: UserModel
 ):
-    """Stream response from Agent Engine with proper SSE parsing"""
+    """Stream response from Team Assistant with proper SSE parsing"""
     config = request.app.state.config
     
     # Get access token
@@ -323,17 +323,17 @@ async def stream_agent_engine_response(
                 
                 if response.status != 200:
                     error_text = await response.text()
-                    log.error(f"Agent Engine API error: {response.status} - {error_text}")
+                    log.error(f"Team Assistant API error: {response.status} - {error_text}")
                     
                     # Send error as proper OpenAI streaming format
                     error_response = {
                         "id": f"chatcmpl-{int(time.time())}",
                         "object": "chat.completion.chunk",
                         "created": int(time.time()),
-                        "model": "agent-engine",
+                        "model": "team-assistant",
                         "choices": [{
                             "index": 0,
-                            "delta": {"content": f"❌ **Agent Engine Error**: {response.status}\n\n{error_text}"},
+                            "delta": {"content": f"❌ **Team Assistant Error**: {response.status}\n\n{error_text}"},
                             "finish_reason": "stop"
                         }]
                     }
@@ -417,7 +417,7 @@ async def stream_agent_engine_response(
                                         "id": f"chatcmpl-{int(time.time())}",
                                         "object": "chat.completion.chunk",
                                         "created": int(time.time()),
-                                        "model": "agent-engine",
+                                        "model": "team-assistant",
                                         "choices": [{
                                             "index": 0,
                                             "delta": {"content": crew_message},
@@ -437,7 +437,7 @@ async def stream_agent_engine_response(
                                         "id": f"chatcmpl-{int(time.time())}",
                                         "object": "chat.completion.chunk", 
                                         "created": int(time.time()),
-                                        "model": "agent-engine",
+                                        "model": "team-assistant",
                                         "choices": [{
                                             "index": 0,
                                             "delta": {"content": content},
@@ -451,7 +451,7 @@ async def stream_agent_engine_response(
                                         "id": f"chatcmpl-{int(time.time())}",
                                         "object": "chat.completion.chunk",
                                         "created": int(time.time()),
-                                        "model": "agent-engine",
+                                        "model": "team-assistant",
                                         "choices": [{
                                             "index": 0,
                                             "delta": {},
@@ -468,7 +468,7 @@ async def stream_agent_engine_response(
                                         "id": f"chatcmpl-{int(time.time())}",
                                         "object": "chat.completion.chunk",
                                         "created": int(time.time()),
-                                        "model": "agent-engine", 
+                                        "model": "team-assistant", 
                                         "choices": [{
                                             "index": 0,
                                             "delta": {"content": agent_data["content"]},
@@ -481,7 +481,7 @@ async def stream_agent_engine_response(
                                 # Not a complete JSON object yet, continue buffering
                                 break
                             except Exception as e:
-                                log.error(f"Error processing Agent Engine response: {e}")
+                                log.error(f"Error processing Team Assistant response: {e}")
                                 json_buffer = ""  # Clear buffer on error
                                 break
                 
@@ -489,27 +489,27 @@ async def stream_agent_engine_response(
                 log.info("Stream ended without final_result - sending default completion")
                 
     except asyncio.TimeoutError:
-        log.error("Agent Engine request timeout")
+        log.error("Team Assistant request timeout")
         timeout_response = {
             "id": f"chatcmpl-{int(time.time())}",
             "object": "chat.completion.chunk",
             "created": int(time.time()),
-            "model": "agent-engine",
+            "model": "team-assistant",
             "choices": [{
                 "index": 0,
-                "delta": {"content": "⏱️ **Request Timeout**: The Agent Engine took too long to respond. Please try again."},
+                "delta": {"content": "⏱️ **Request Timeout**: The Team Assistant took too long to respond. Please try again."},
                 "finish_reason": "stop"
             }]
         }
         yield f"data: {json.dumps(timeout_response)}\n\n"
         yield "data: [DONE]\n\n"
     except Exception as e:
-        log.error(f"Agent Engine streaming error: {e}")
+        log.error(f"Team Assistant streaming error: {e}")
         error_response = {
             "id": f"chatcmpl-{int(time.time())}",
             "object": "chat.completion.chunk",
             "created": int(time.time()),
-            "model": "agent-engine",
+            "model": "team-assistant",
             "choices": [{
                 "index": 0,
                 "delta": {"content": f"🚨 **Streaming Error**: {str(e)}"},
@@ -527,7 +527,7 @@ async def generate_chat_completion(
     bypass_filter: Optional[bool] = False,
 ):
     """
-    Generate chat completion using Agent Engine
+    Generate chat completion using Team Assistant
     Compatible with OpenAI chat completions API
     """
     if BYPASS_MODEL_ACCESS_CONTROL:
@@ -536,10 +536,10 @@ async def generate_chat_completion(
     config = request.app.state.config
     
     if not getattr(config, 'ENABLE_AGENT_ENGINE', False):
-        raise HTTPException(status_code=503, detail="Agent Engine is not enabled")
+        raise HTTPException(status_code=503, detail="Team Assistant is not enabled")
     
     if not getattr(config, 'AGENT_ENGINE_PROJECT_ID', None) or not getattr(config, 'AGENT_ENGINE_REASONING_ENGINE_ID', None):
-        raise HTTPException(status_code=500, detail="Agent Engine configuration incomplete")
+        raise HTTPException(status_code=500, detail="Team Assistant configuration incomplete")
     
     # Transform OpenAI format to Agent Engine format
     openai_messages = form_data.get("messages", [])
@@ -604,7 +604,7 @@ async def generate_chat_completion(
             "id": f"chatcmpl-{int(time.time())}",
             "object": "chat.completion",
             "created": int(time.time()),
-            "model": "agent-engine",
+            "model": "team-assistant",
             "choices": [{
                 "index": 0,
                 "message": {
@@ -624,7 +624,7 @@ async def generate_chat_completion(
 
 @router.get("/debug")
 async def debug_agent_engine(request: Request, user=Depends(get_admin_user)):
-    """Debug endpoint to check Agent Engine configuration"""
+    """Debug endpoint to check Team Assistant configuration"""
     return {
         "config_values": {
             "ENABLE_AGENT_ENGINE": getattr(request.app.state.config, 'ENABLE_AGENT_ENGINE', 'NOT_FOUND'),
@@ -642,7 +642,7 @@ async def debug_agent_engine(request: Request, user=Depends(get_admin_user)):
 
 @router.get("/status")
 async def agent_engine_status(request: Request):
-    """Public endpoint to check Agent Engine status (no auth required)"""
+    """Public endpoint to check Team Assistant status (no auth required)"""
     try:
         config = request.app.state.config
         return {
