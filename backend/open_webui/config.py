@@ -1439,7 +1439,7 @@ FOLLOW_UP_GENERATION_PROMPT_TEMPLATE = PersistentConfig(
 DEFAULT_FOLLOW_UP_GENERATION_PROMPT_TEMPLATE = """### Task:
 Suggest 3-5 relevant follow-up questions or prompts that the user might naturally ask next in this conversation as a **user**, based on the chat history, to help continue or deepen the discussion.
 ### Guidelines:
-- Write all follow-up questions from the user’s point of view, directed to the assistant.
+- Write all follow-up questions from the user's point of view, directed to the assistant.
 - Make questions concise, clear, and directly related to the discussed topic(s).
 - Only suggest follow-ups that make sense given the chat content and do not repeat what was already covered.
 - If the conversation is very short or not specific, suggest more general (but relevant) follow-ups the user might ask.
@@ -3131,4 +3131,56 @@ LDAP_ATTRIBUTE_FOR_GROUPS = PersistentConfig(
     "LDAP_ATTRIBUTE_FOR_GROUPS",
     "ldap.server.attribute_for_groups",
     os.environ.get("LDAP_ATTRIBUTE_FOR_GROUPS", "memberOf"),
+)
+
+####################################
+# AGENT ENGINE
+####################################
+
+ENABLE_AGENT_ENGINE = PersistentConfig(
+    "ENABLE_AGENT_ENGINE",
+    "agent_engine.enable",
+    os.environ.get("ENABLE_AGENT_ENGINE", "False").lower() == "true",
+)
+
+AGENT_ENGINE_PROJECT_ID = PersistentConfig(
+    "AGENT_ENGINE_PROJECT_ID",
+    "agent_engine.project_id",
+    os.environ.get("AGENT_ENGINE_PROJECT_ID", ""),
+)
+
+AGENT_ENGINE_LOCATION = PersistentConfig(
+    "AGENT_ENGINE_LOCATION",
+    "agent_engine.location",
+    os.environ.get("AGENT_ENGINE_LOCATION", "us-central1"),
+)
+
+AGENT_ENGINE_REASONING_ENGINE_ID = PersistentConfig(
+    "AGENT_ENGINE_REASONING_ENGINE_ID",
+    "agent_engine.reasoning_engine_id",
+    os.environ.get("AGENT_ENGINE_REASONING_ENGINE_ID", ""),
+)
+
+AGENT_ENGINE_SERVICE_ACCOUNT_JSON = PersistentConfig(
+    "AGENT_ENGINE_SERVICE_ACCOUNT_JSON",
+    "agent_engine.service_account_json",
+    os.environ.get("AGENT_ENGINE_SERVICE_ACCOUNT_JSON", ""),
+)
+
+AGENT_ENGINE_WORKLOAD_IDENTITY_PROVIDER = PersistentConfig(
+    "AGENT_ENGINE_WORKLOAD_IDENTITY_PROVIDER",
+    "agent_engine.workload_identity_provider",
+    os.environ.get("AGENT_ENGINE_WORKLOAD_IDENTITY_PROVIDER", ""),
+)
+
+AGENT_ENGINE_WORKLOAD_IDENTITY_SERVICE_ACCOUNT = PersistentConfig(
+    "AGENT_ENGINE_WORKLOAD_IDENTITY_SERVICE_ACCOUNT",
+    "agent_engine.workload_identity_service_account",
+    os.environ.get("AGENT_ENGINE_WORKLOAD_IDENTITY_SERVICE_ACCOUNT", ""),
+)
+
+AGENT_ENGINE_CUSTOM_URL = PersistentConfig(
+    "AGENT_ENGINE_CUSTOM_URL",
+    "agent_engine.custom_url",
+    os.environ.get("AGENT_ENGINE_CUSTOM_URL", ""),
 )

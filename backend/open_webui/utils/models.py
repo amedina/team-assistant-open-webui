@@ -56,6 +56,28 @@ async def fetch_openai_models(request: Request, user: UserModel = None):
     return openai_response["data"]
 
 
+async def fetch_agent_engine_models(request: Request, user: UserModel = None):
+    """Fetch Agent Engine models if enabled."""
+    if not request.app.state.config.ENABLE_AGENT_ENGINE:
+        return []
+    
+    return [
+        {
+            "id": "agent-engine",
+            "name": "Agent Engine",
+            "object": "model",
+            "created": int(time.time()),
+            "owned_by": "agent-engine",
+            "info": {
+                "meta": {
+                    "description": "Multi-crew AI system with intelligent routing capabilities",
+                    "tags": [{"name": "agent"}, {"name": "crew"}, {"name": "routing"}]
+                }
+            }
+        }
+    ]
+
+
 async def get_all_base_models(request: Request, user: UserModel = None):
     openai_task = (
         fetch_openai_models(request, user)
@@ -67,13 +89,18 @@ async def get_all_base_models(request: Request, user: UserModel = None):
         if request.app.state.config.ENABLE_OLLAMA_API
         else asyncio.sleep(0, result=[])
     )
+    agent_engine_task = (
+        fetch_agent_engine_models(request, user)
+        if request.app.state.config.ENABLE_AGENT_ENGINE
+        else asyncio.sleep(0, result=[])
+    )
     function_task = get_function_models(request)
 
-    openai_models, ollama_models, function_models = await asyncio.gather(
-        openai_task, ollama_task, function_task
+    openai_models, ollama_models, agent_engine_models, function_models = await asyncio.gather(
+        openai_task, ollama_task, agent_engine_task, function_task
     )
 
-    return function_models + openai_models + ollama_models
+    return function_models + openai_models + ollama_models + agent_engine_models
 
 
 async def get_all_models(request, user: UserModel = None):

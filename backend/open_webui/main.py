@@ -61,6 +61,7 @@ from open_webui.socket.main import (
     get_active_user_ids,
 )
 from open_webui.routers import (
+    agent_engine,
     audio,
     images,
     ollama,
@@ -418,6 +419,15 @@ from open_webui.env import (
     ENABLE_OTEL,
     EXTERNAL_PWA_MANIFEST_URL,
     AIOHTTP_CLIENT_SESSION_SSL,
+    # Agent Engine
+    ENABLE_AGENT_ENGINE,
+    AGENT_ENGINE_PROJECT_ID,
+    AGENT_ENGINE_LOCATION,
+    AGENT_ENGINE_REASONING_ENGINE_ID,
+    AGENT_ENGINE_SERVICE_ACCOUNT_JSON,
+    AGENT_ENGINE_WORKLOAD_IDENTITY_PROVIDER,
+    AGENT_ENGINE_WORKLOAD_IDENTITY_SERVICE_ACCOUNT,
+    AGENT_ENGINE_CUSTOM_URL,
 )
 
 
@@ -597,6 +607,33 @@ app.state.config.OPENAI_API_KEYS = OPENAI_API_KEYS
 app.state.config.OPENAI_API_CONFIGS = OPENAI_API_CONFIGS
 
 app.state.OPENAI_MODELS = {}
+
+########################################
+#
+# AGENT ENGINE
+#
+########################################
+
+# Register the PersistentConfig objects with the AppConfig instance
+from open_webui.config import (
+    ENABLE_AGENT_ENGINE as ENABLE_AGENT_ENGINE_CONFIG,
+    AGENT_ENGINE_PROJECT_ID as AGENT_ENGINE_PROJECT_ID_CONFIG,
+    AGENT_ENGINE_LOCATION as AGENT_ENGINE_LOCATION_CONFIG,
+    AGENT_ENGINE_REASONING_ENGINE_ID as AGENT_ENGINE_REASONING_ENGINE_ID_CONFIG,
+    AGENT_ENGINE_SERVICE_ACCOUNT_JSON as AGENT_ENGINE_SERVICE_ACCOUNT_JSON_CONFIG,
+    AGENT_ENGINE_WORKLOAD_IDENTITY_PROVIDER as AGENT_ENGINE_WORKLOAD_IDENTITY_PROVIDER_CONFIG,
+    AGENT_ENGINE_WORKLOAD_IDENTITY_SERVICE_ACCOUNT as AGENT_ENGINE_WORKLOAD_IDENTITY_SERVICE_ACCOUNT_CONFIG,
+    AGENT_ENGINE_CUSTOM_URL as AGENT_ENGINE_CUSTOM_URL_CONFIG,
+)
+
+app.state.config.ENABLE_AGENT_ENGINE = ENABLE_AGENT_ENGINE_CONFIG
+app.state.config.AGENT_ENGINE_PROJECT_ID = AGENT_ENGINE_PROJECT_ID_CONFIG
+app.state.config.AGENT_ENGINE_LOCATION = AGENT_ENGINE_LOCATION_CONFIG
+app.state.config.AGENT_ENGINE_REASONING_ENGINE_ID = AGENT_ENGINE_REASONING_ENGINE_ID_CONFIG
+app.state.config.AGENT_ENGINE_SERVICE_ACCOUNT_JSON = AGENT_ENGINE_SERVICE_ACCOUNT_JSON_CONFIG
+app.state.config.AGENT_ENGINE_WORKLOAD_IDENTITY_PROVIDER = AGENT_ENGINE_WORKLOAD_IDENTITY_PROVIDER_CONFIG
+app.state.config.AGENT_ENGINE_WORKLOAD_IDENTITY_SERVICE_ACCOUNT = AGENT_ENGINE_WORKLOAD_IDENTITY_SERVICE_ACCOUNT_CONFIG
+app.state.config.AGENT_ENGINE_CUSTOM_URL = AGENT_ENGINE_CUSTOM_URL_CONFIG
 
 ########################################
 #
@@ -1131,6 +1168,7 @@ app.mount("/ws", socket_app)
 
 app.include_router(ollama.router, prefix="/ollama", tags=["ollama"])
 app.include_router(openai.router, prefix="/openai", tags=["openai"])
+app.include_router(agent_engine.router, prefix="/agent_engine", tags=["agent_engine"])
 
 
 app.include_router(pipelines.router, prefix="/api/v1/pipelines", tags=["pipelines"])
