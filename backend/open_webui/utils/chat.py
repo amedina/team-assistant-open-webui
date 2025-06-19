@@ -278,7 +278,7 @@ async def generate_chat_completion(
                 )
             else:
                 return convert_response_ollama_to_openai(response)
-        elif model.get("owned_by") == "agent-engine":
+        elif model.get("owned_by") == "team-assistant":
             return await generate_agent_engine_chat_completion(
                 request=request,
                 form_data=form_data,

@@ -57,21 +57,21 @@ async def fetch_openai_models(request: Request, user: UserModel = None):
 
 
 async def fetch_agent_engine_models(request: Request, user: UserModel = None):
-    """Fetch Agent Engine models if enabled."""
+    """Fetch Team Assistant models if enabled."""
     if not request.app.state.config.ENABLE_AGENT_ENGINE:
         return []
     
     return [
         {
-            "id": "agent-engine",
-            "name": "Agent Engine",
+            "id": "team-assistant",
+            "name": "Team Assistant",
             "object": "model",
             "created": int(time.time()),
-            "owned_by": "agent-engine",
+            "owned_by": "team-assistant",
             "info": {
                 "meta": {
-                    "description": "Multi-crew AI system with intelligent routing capabilities",
-                    "tags": [{"name": "agent"}, {"name": "crew"}, {"name": "routing"}]
+                    "description": "AI Team Assistant with intelligent crew routing capabilities",
+                    "tags": [{"name": "team"}, {"name": "assistant"}, {"name": "crew"}, {"name": "routing"}]
                 }
             }
         }
