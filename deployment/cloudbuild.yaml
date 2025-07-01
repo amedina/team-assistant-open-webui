@@ -1,0 +1,133 @@
+# Cloud Build configuration for Open WebUI
+# This file demonstrates how Cloud Build creates Docker images and deploys to Cloud Run
+
+steps:
+  # Step 1: Build the Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-image'
+    args:
+      - 'build'
+      - '-t'
+      - '${_ARTIFACT_REGISTRY_URL}/open-webui:${COMMIT_SHA}'
+      - '-t' 
+      - '${_ARTIFACT_REGISTRY_URL}/open-webui:latest'
+      - '-f'
+      - 'Dockerfile'
+      - '.'
+    env:
+      - 'DOCKER_BUILDKIT=1'
+
+  # Step 2: Push the commit-specific image
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-commit-image'
+    args:
+      - 'push'
+      - '${_ARTIFACT_REGISTRY_URL}/open-webui:${COMMIT_SHA}'
+    waitFor: ['build-image']
+
+  # Step 3: Push the latest tag
+  - name: 'gcr.io/cloud-builders/docker' 
+    id: 'push-latest-image'
+    args:
+      - 'push'
+      - '${_ARTIFACT_REGISTRY_URL}/open-webui:latest'
+    waitFor: ['build-image']
+
+  # Step 4: Deploy to Cloud Run (conditional based on environment)
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'deploy-cloud-run'
+    args:
+      - 'run'
+      - 'deploy'
+      - '${_ENVIRONMENT}-open-webui'
+      - '--image'
+      - '${_ARTIFACT_REGISTRY_URL}/open-webui:${COMMIT_SHA}'
+      - '--region'
+      - '${_REGION}'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--port'
+      - '8080'
+      - '--memory'
+      - '${_MEMORY_LIMIT}'
+      - '--cpu'
+      - '${_CPU_LIMIT}'
+      - '--min-instances'
+      - '${_MIN_INSTANCES}'
+      - '--max-instances'
+      - '${_MAX_INSTANCES}'
+      - '--service-account'
+      - '${_SERVICE_ACCOUNT_EMAIL}'
+      - '--vpc-connector'
+      - '${_VPC_CONNECTOR}'
+      - '--vpc-egress'
+      - 'private-ranges-only'
+      - '--quiet'
+    waitFor: ['push-commit-image']
+
+  # Step 5: Run database migrations (if needed)
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'run-migrations'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        # Run Alembic migrations using Cloud Run Jobs
+        gcloud run jobs create migrate-${BUILD_ID} \
+          --image=${_ARTIFACT_REGISTRY_URL}/open-webui:${COMMIT_SHA} \
+          --region=${_REGION} \
+          --service-account=${_SERVICE_ACCOUNT_EMAIL} \
+          --vpc-connector=${_VPC_CONNECTOR} \
+          --vpc-egress=private-ranges-only \
+          --set-env-vars="DATABASE_URL=${_DATABASE_URL}" \
+          --set-env-vars="REDIS_URL=${_REDIS_URL}" \
+          --command="python" \
+          --args="-m,alembic,upgrade,head" \
+          --quiet
+        
+        # Execute the migration job
+        gcloud run jobs execute migrate-${BUILD_ID} \
+          --region=${_REGION} \
+          --wait \
+          --quiet
+        
+        # Clean up the job
+        gcloud run jobs delete migrate-${BUILD_ID} \
+          --region=${_REGION} \
+          --quiet
+    waitFor: ['deploy-cloud-run']
+
+# Substitutions for environment-specific values
+substitutions:
+  # These are filled by Terraform during trigger creation
+  _ARTIFACT_REGISTRY_URL: 'us-central1-docker.pkg.dev/PROJECT_ID/REPO_NAME'
+  _ENVIRONMENT: 'dev'
+  _REGION: 'us-central1'
+  _MEMORY_LIMIT: '2Gi'
+  _CPU_LIMIT: '1'
+  _MIN_INSTANCES: '0'
+  _MAX_INSTANCES: '10'
+  _SERVICE_ACCOUNT_EMAIL: 'cloud-run-sa@PROJECT_ID.iam.gserviceaccount.com'
+  _VPC_CONNECTOR: 'projects/PROJECT_ID/locations/REGION/connectors/CONNECTOR_NAME'
+  _DATABASE_URL: 'postgresql://user:pass@host:5432/db'
+  _REDIS_URL: 'redis://host:6379'
+
+# Build options
+options:
+  # Use high-CPU machine for faster builds
+  machineType: 'E2_HIGHCPU_8'
+  
+  # Use Cloud Logging for better integration
+  logging: 'CLOUD_LOGGING_ONLY'
+  
+  # Set build timeout (20 minutes)
+  timeout: '1200s'
+  
+  # Use service account for secure operations
+  serviceAccount: 'projects/PROJECT_ID/serviceAccounts/cloud-build-sa@PROJECT_ID.iam.gserviceaccount.com'
+
+# Image tags for organization
+tags:
+  - 'open-webui'
+  - '${_ENVIRONMENT}' 
