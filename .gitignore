@@ -308,8 +308,7 @@ cypress/videos
 cypress/screenshots
 .vscode/settings.json
 
-
 # terraform
 .terraform*
 .Terraform*
-
+terraform.tfvars

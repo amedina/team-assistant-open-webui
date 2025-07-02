@@ -3,7 +3,7 @@
 
 terraform {
   backend "gcs" {
-    bucket = "your-project-id-terraform-state"
+    bucket = "ps-agent-sandbox-terraform-state"
     prefix = "open-webui/staging"
   }
 }
