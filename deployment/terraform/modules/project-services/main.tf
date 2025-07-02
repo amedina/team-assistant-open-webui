@@ -19,7 +19,6 @@ locals {
     "aiplatform.googleapis.com",            # Vertex AI
     "monitoring.googleapis.com",            # Cloud Monitoring
     "logging.googleapis.com",               # Cloud Logging
-    "oauth2.googleapis.com",                # OAuth2
     "iam.googleapis.com",                   # Identity and Access Management
     "compute.googleapis.com",               # Compute Engine (for networking)
     "servicenetworking.googleapis.com",     # Service Networking

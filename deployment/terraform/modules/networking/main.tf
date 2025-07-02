@@ -9,14 +9,14 @@ terraform {
 
 # VPC Network
 resource "google_compute_network" "main" {
-  name                    = "${var.environment}-openwebui-vpc"
+  name                    = "${var.environment}-open-webui-vpc"
   auto_create_subnetworks = false
   project                 = var.project_id
 }
 
 # Subnet for VPC Connector
 resource "google_compute_subnetwork" "vpc_connector" {
-  name          = "${var.environment}-openwebui-connector-subnet"
+  name          = "${var.environment}-open-webui-connector-subnet"
   network       = google_compute_network.main.id
   region        = var.region
   ip_cidr_range = var.vpc_connector_cidr
@@ -25,7 +25,7 @@ resource "google_compute_subnetwork" "vpc_connector" {
 
 # Subnet for Cloud SQL (Private IP)
 resource "google_compute_subnetwork" "database" {
-  name          = "${var.environment}-openwebui-db-subnet"
+  name          = "${var.environment}-open-webui-db-subnet"
   network       = google_compute_network.main.id
   region        = var.region
   ip_cidr_range = var.database_subnet_cidr
@@ -41,7 +41,7 @@ resource "google_service_networking_connection" "private_service_connection" {
 
 # Reserved IP range for private services
 resource "google_compute_global_address" "private_ip_range" {
-  name          = "${var.environment}-openwebui-private-ip"
+  name          = "${var.environment}-open-webui-private-ip"
   purpose       = "VPC_PEERING"
   address_type  = "INTERNAL"
   prefix_length = 16
@@ -51,7 +51,7 @@ resource "google_compute_global_address" "private_ip_range" {
 
 # VPC Access Connector for Cloud Run
 resource "google_vpc_access_connector" "connector" {
-  name          = "${var.environment}-openwebui-connector"
+  name          = "${var.environment}-openwebui-conn"
   region        = var.region
   subnet {
     name = google_compute_subnetwork.vpc_connector.name
@@ -65,7 +65,7 @@ resource "google_vpc_access_connector" "connector" {
 
 # Firewall rule to allow internal communication
 resource "google_compute_firewall" "allow_internal" {
-  name    = "${var.environment}-openwebui-allow-internal"
+  name    = "${var.environment}-open-webui-allow-internal"
   network = google_compute_network.main.name
   project = var.project_id
 
@@ -82,7 +82,7 @@ resource "google_compute_firewall" "allow_internal" {
 
 # Firewall rule for health checks
 resource "google_compute_firewall" "allow_health_check" {
-  name    = "${var.environment}-openwebui-allow-health-check"
+  name    = "${var.environment}-open-webui-allow-health-check"
   network = google_compute_network.main.name
   project = var.project_id
 

@@ -58,30 +58,30 @@ resource "google_storage_bucket_iam_member" "cloud_run_objectAdmin" {
 # Create directories structure in the bucket (using dummy objects)
 resource "google_storage_bucket_object" "app_data_dir" {
   name    = "app-data/.keep"
-  content = ""
+  content = "# This file ensures the app-data directory exists in the bucket"
   bucket  = google_storage_bucket.openwebui_storage.name
 }
 
 resource "google_storage_bucket_object" "uploads_dir" {
   name    = "uploads/.keep" 
-  content = ""
+  content = "# This file ensures the uploads directory exists in the bucket"
   bucket  = google_storage_bucket.openwebui_storage.name
 }
 
 resource "google_storage_bucket_object" "cache_dir" {
   name    = "cache/.keep"
-  content = ""
+  content = "# This file ensures the cache directory exists in the bucket"
   bucket  = google_storage_bucket.openwebui_storage.name
 }
 
 resource "google_storage_bucket_object" "models_dir" {
   name    = "models/.keep"
-  content = ""
+  content = "# This file ensures the models directory exists in the bucket"
   bucket  = google_storage_bucket.openwebui_storage.name
 }
 
 resource "google_storage_bucket_object" "backups_dir" {
   name    = "backups/.keep"
-  content = ""
+  content = "# This file ensures the backups directory exists in the bucket"
   bucket  = google_storage_bucket.openwebui_storage.name
 } 

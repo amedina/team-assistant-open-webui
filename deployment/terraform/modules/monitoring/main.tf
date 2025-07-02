@@ -21,7 +21,7 @@ resource "google_monitoring_notification_channel" "email" {
 # Uptime check for Cloud Run service
 resource "google_monitoring_uptime_check_config" "cloud_run_uptime" {
   count          = var.enable_uptime_checks ? 1 : 0
-  display_name   = "${var.environment}-openwebui-uptime-check"
+  display_name   = "${var.environment}-open-webui-uptime-check"
   timeout        = "10s"
   period         = "300s"
   
@@ -49,7 +49,7 @@ resource "google_monitoring_uptime_check_config" "cloud_run_uptime" {
 # Alert policy for uptime check failures
 resource "google_monitoring_alert_policy" "uptime_alert" {
   count        = var.enable_uptime_checks && var.notification_email != "" ? 1 : 0
-  display_name = "${var.environment}-openwebui-uptime-alert"
+  display_name = "${var.environment}-open-webui-uptime-alert"
   combiner     = "OR"  # Required: how to combine conditions
   
   conditions {

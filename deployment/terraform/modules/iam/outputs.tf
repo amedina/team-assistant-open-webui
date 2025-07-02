@@ -18,8 +18,5 @@ output "cloud_build_service_account_id" {
   value       = google_service_account.cloud_build.id
 }
 
-output "cloud_run_service_account_key" {
-  description = "Private key for the Cloud Run service account"
-  value       = google_service_account_key.cloud_run_key.private_key
-  sensitive   = true
-} 
+# Service account key output removed due to organization policy
+# Cloud Run will use default service account authentication 

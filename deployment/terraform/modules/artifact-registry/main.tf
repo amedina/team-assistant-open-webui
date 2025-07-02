@@ -21,14 +21,8 @@ resource "google_artifact_registry_repository" "main" {
     id     = "keep-minimum-versions"
     action = "KEEP"
     
-    condition {
-      tag_state             = "TAGGED"
-      tag_prefixes          = ["v", "release"]
-      older_than            = "2592000s"  # 30 days
-    }
-    
     most_recent_versions {
-      keep_count = var.keep_image_versions
+      keep_count = 10
     }
   }
 

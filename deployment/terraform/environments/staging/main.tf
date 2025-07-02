@@ -185,7 +185,6 @@ module "cloud_run" {
     REDIS_URL                          = "redis://${module.redis.host}:6379"
     STORAGE_PROVIDER                   = "gcs"
     GCS_BUCKET_NAME                    = module.storage.bucket_name
-    GOOGLE_APPLICATION_CREDENTIALS_JSON = base64encode(module.iam.cloud_run_service_account_key)
     GOOGLE_CLIENT_ID                   = var.google_oauth_client_id
     GOOGLE_CLIENT_SECRET               = var.google_oauth_client_secret
     ENABLE_SIGNUP                      = "true"   # Allow signup in staging for testing

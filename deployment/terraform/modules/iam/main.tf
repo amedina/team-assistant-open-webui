@@ -9,7 +9,7 @@ terraform {
 
 # Cloud Run Service Account
 resource "google_service_account" "cloud_run" {
-  account_id   = "${var.environment}-openwebui-cloudrun"
+  account_id   = "${var.environment}-open-webui-cloudrun"
   display_name = "Open WebUI Cloud Run Service Account (${var.environment})"
   description  = "Service account for Open WebUI Cloud Run service in ${var.environment}"
   project      = var.project_id
@@ -17,7 +17,7 @@ resource "google_service_account" "cloud_run" {
 
 # Cloud Build Service Account
 resource "google_service_account" "cloud_build" {
-  account_id   = "${var.environment}-openwebui-cloudbuild"
+  account_id   = "${var.environment}-open-webui-cloudbuild"
   display_name = "Open WebUI Cloud Build Service Account (${var.environment})"
   description  = "Service account for Open WebUI Cloud Build in ${var.environment}"
   project      = var.project_id
@@ -85,11 +85,8 @@ resource "google_project_iam_member" "cloud_build_iam_sa_user" {
   member  = "serviceAccount:${google_service_account.cloud_build.email}"
 }
 
-# Service Account Keys (for applications that need JSON key files)
-resource "google_service_account_key" "cloud_run_key" {
-  service_account_id = google_service_account.cloud_run.name
-  public_key_type    = "TYPE_X509_PEM_FILE"
-}
+# Note: Service account keys are disabled by organization policy
+# Using default service account authentication instead
 
 # Storage bucket IAM for Cloud Run service account
 resource "google_storage_bucket_iam_member" "cloud_run_bucket_admin" {

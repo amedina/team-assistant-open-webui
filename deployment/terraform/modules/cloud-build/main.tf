@@ -10,7 +10,7 @@ terraform {
 # Cloud Build trigger for automatic builds
 resource "google_cloudbuild_trigger" "main" {
   project     = var.project_id
-  name        = "${var.environment}-openwebui-trigger"
+  name        = "${var.environment}-open-webui-trigger"
   description = "Trigger for Open WebUI ${var.environment} environment"
   
   # Trigger on push to specific branch
@@ -86,14 +86,14 @@ resource "google_cloudbuild_trigger" "main" {
   included_files = var.included_files
   ignored_files  = var.ignored_files
 
-  tags = ["${var.environment}", "openwebui"]
+  tags = ["${var.environment}", "open-webui"]
 }
 
 # Cloud Build trigger for manual builds (tagged releases)
 resource "google_cloudbuild_trigger" "release" {
   count       = var.enable_release_trigger ? 1 : 0
   project     = var.project_id
-  name        = "${var.environment}-openwebui-release-trigger"
+  name        = "${var.environment}-open-webui-release-trigger"
   description = "Release trigger for Open WebUI ${var.environment} environment"
   
   # Trigger on tag creation
@@ -162,7 +162,7 @@ resource "google_cloudbuild_trigger" "release" {
     timeout = "${var.build_timeout_seconds}s"
   }
 
-  tags = ["${var.environment}", "openwebui", "release"]
+  tags = ["${var.environment}", "open-webui", "release"]
 }
 
 # IAM binding for Cloud Build to deploy to Cloud Run

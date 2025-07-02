@@ -9,7 +9,7 @@ terraform {
 
 # Memorystore Redis Instance
 resource "google_redis_instance" "main" {
-  name           = "${var.environment}-openwebui-redis"
+  name           = "${var.environment}-open-webui-redis"
   project        = var.project_id
   region         = var.region
   memory_size_gb = var.memory_size_gb

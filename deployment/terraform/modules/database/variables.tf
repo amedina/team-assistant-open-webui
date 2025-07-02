@@ -16,7 +16,7 @@ variable "environment" {
 variable "database_version" {
   description = "PostgreSQL database version"
   type        = string
-  default     = "POSTGRES_15"
+  default     = "POSTGRES_17"
 }
 
 variable "database_tier" {

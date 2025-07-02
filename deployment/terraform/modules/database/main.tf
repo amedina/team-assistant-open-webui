@@ -9,7 +9,7 @@ terraform {
 
 # Cloud SQL PostgreSQL Instance
 resource "google_sql_database_instance" "postgres" {
-  name             = "${var.environment}-openwebui-db"
+  name             = "${var.environment}-open-webui-db"
   database_version = var.database_version
   region           = var.region
   project          = var.project_id
