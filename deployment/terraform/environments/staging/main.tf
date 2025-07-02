@@ -146,24 +146,24 @@ module "artifact_registry" {
   depends_on = [module.project_services]
 }
 
-# Cloud Build
-module "cloud_build" {
-  source                    = "../../modules/cloud-build"
-  project_id               = var.project_id
-  region                   = var.region
-  environment              = local.environment
-  repository_url           = var.repository_url
-  github_owner             = var.github_owner
-  github_repo              = var.github_repo
-  trigger_branch           = "main"  # Auto-deploy staging on main branch
-  artifact_registry_url    = module.artifact_registry.repository_url
-  service_account_email    = module.iam.cloud_build_service_account_email
-  cloud_run_service_name   = var.cloud_run_service_name
-  auto_deploy              = true   # Enable auto-deployment for staging
-  enable_release_trigger   = false  # Disable release trigger for staging
-  
-  depends_on = [module.artifact_registry]
-}
+# Cloud Build (temporarily disabled - will enable after core infrastructure is deployed)
+# module "cloud_build" {
+#   source                    = "../../modules/cloud-build"
+#   project_id               = var.project_id
+#   region                   = var.region
+#   environment              = local.environment
+#   repository_url           = var.repository_url
+#   github_owner             = var.github_owner
+#   github_repo              = var.github_repo
+#   trigger_branch           = "terraform-v1"  # Auto-deploy staging on terraform-v1 branch
+#   artifact_registry_url    = module.artifact_registry.repository_url
+#   service_account_email    = module.iam.cloud_build_service_account_email
+#   cloud_run_service_name   = var.cloud_run_service_name
+#   auto_deploy              = true   # Enable auto-deployment for staging
+#   enable_release_trigger   = false  # Disable release trigger for staging
+#   
+#   depends_on = [module.artifact_registry]
+# }
 
 # Cloud Run Service
 module "cloud_run" {
@@ -181,7 +181,7 @@ module "cloud_run" {
   environment_variables = {
     ENV                                 = "staging"
     WEBUI_SECRET_KEY                   = random_password.webui_secret_key.result
-    DATABASE_URL                       = "postgresql://openwebui:${random_password.db_password.result}@${module.database.private_ip_address}:5432/openwebui"
+    DATABASE_URL                       = "postgresql://openwebui:${urlencode(random_password.db_password.result)}@${module.database.private_ip_address}:5432/openwebui"
     REDIS_URL                          = "redis://${module.redis.host}:6379"
     STORAGE_PROVIDER                   = "gcs"
     GCS_BUCKET_NAME                    = module.storage.bucket_name

@@ -85,6 +85,18 @@ resource "google_project_iam_member" "cloud_build_iam_sa_user" {
   member  = "serviceAccount:${google_service_account.cloud_build.email}"
 }
 
+resource "google_project_iam_member" "cloud_build_logging_writer" {
+  project = var.project_id
+  role    = "roles/logging.logWriter"
+  member  = "serviceAccount:${google_service_account.cloud_build.email}"
+}
+
+resource "google_project_iam_member" "cloud_build_storage_admin" {
+  project = var.project_id
+  role    = "roles/storage.admin"
+  member  = "serviceAccount:${google_service_account.cloud_build.email}"
+}
+
 # Note: Service account keys are disabled by organization policy
 # Using default service account authentication instead
 

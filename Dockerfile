@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1
 # Initialize device type args
 # use build args in the docker build command with --build-arg="BUILDARG=true"
+ARG BUILDPLATFORM=linux/amd64
 ARG USE_CUDA=false
 ARG USE_OLLAMA=false
 # Tested with cu117 for CUDA 11 and cu121 for CUDA 12 (default)
@@ -34,6 +35,7 @@ RUN npm ci
 
 COPY . .
 ENV APP_BUILD_HASH=${BUILD_HASH}
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN npm run build
 
 ######## WebUI backend ########

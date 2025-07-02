@@ -9,9 +9,10 @@ terraform {
 
 # Cloud Build trigger for automatic builds
 resource "google_cloudbuild_trigger" "main" {
-  project     = var.project_id
-  name        = "${var.environment}-open-webui-trigger"
-  description = "Trigger for Open WebUI ${var.environment} environment"
+  project         = var.project_id
+  name            = "${var.environment}-open-webui-trigger"
+  description     = "Trigger for Open WebUI ${var.environment} environment"
+  service_account = var.service_account_email
   
   # Trigger on push to specific branch
   github {
@@ -91,10 +92,11 @@ resource "google_cloudbuild_trigger" "main" {
 
 # Cloud Build trigger for manual builds (tagged releases)
 resource "google_cloudbuild_trigger" "release" {
-  count       = var.enable_release_trigger ? 1 : 0
-  project     = var.project_id
-  name        = "${var.environment}-open-webui-release-trigger"
-  description = "Release trigger for Open WebUI ${var.environment} environment"
+  count           = var.enable_release_trigger ? 1 : 0
+  project         = var.project_id
+  name            = "${var.environment}-open-webui-release-trigger"
+  description     = "Release trigger for Open WebUI ${var.environment} environment"
+  service_account = var.service_account_email
   
   # Trigger on tag creation
   github {

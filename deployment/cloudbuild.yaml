@@ -113,6 +113,12 @@ substitutions:
   _DATABASE_URL: 'postgresql://user:pass@host:5432/db'
   _REDIS_URL: 'redis://host:6379'
 
+# Service account for secure operations
+serviceAccount: 'projects/PROJECT_ID/serviceAccounts/cloud-build-sa@PROJECT_ID.iam.gserviceaccount.com'
+
+# Build timeout (20 minutes)
+timeout: '1200s'
+
 # Build options
 options:
   # Use high-CPU machine for faster builds
@@ -120,12 +126,6 @@ options:
   
   # Use Cloud Logging for better integration
   logging: 'CLOUD_LOGGING_ONLY'
-  
-  # Set build timeout (20 minutes)
-  timeout: '1200s'
-  
-  # Use service account for secure operations
-  serviceAccount: 'projects/PROJECT_ID/serviceAccounts/cloud-build-sa@PROJECT_ID.iam.gserviceaccount.com'
 
 # Image tags for organization
 tags:
