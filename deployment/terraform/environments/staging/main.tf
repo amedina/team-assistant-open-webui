@@ -147,23 +147,23 @@ module "artifact_registry" {
 }
 
 # Cloud Build (temporarily disabled - will enable after core infrastructure is deployed)
-# module "cloud_build" {
-#   source                    = "../../modules/cloud-build"
-#   project_id               = var.project_id
-#   region                   = var.region
-#   environment              = local.environment
-#   repository_url           = var.repository_url
-#   github_owner             = var.github_owner
-#   github_repo              = var.github_repo
-#   trigger_branch           = "terraform-v1"  # Auto-deploy staging on terraform-v1 branch
-#   artifact_registry_url    = module.artifact_registry.repository_url
-#   service_account_email    = module.iam.cloud_build_service_account_email
-#   cloud_run_service_name   = var.cloud_run_service_name
-#   auto_deploy              = true   # Enable auto-deployment for staging
-#   enable_release_trigger   = false  # Disable release trigger for staging
-#   
-#   depends_on = [module.artifact_registry]
-# }
+module "cloud_build" {
+  source                    = "../../modules/cloud-build"
+  project_id               = var.project_id
+  region                   = var.region
+  environment              = local.environment
+  repository_url           = var.repository_url
+  github_owner             = var.github_owner
+  github_repo              = var.github_repo
+  trigger_branch           = "terraform-v1"  # Auto-deploy staging on terraform-v1 branch
+  artifact_registry_url    = module.artifact_registry.repository_url
+  service_account_email    = module.iam.cloud_build_service_account_email
+  cloud_run_service_name   = var.cloud_run_service_name
+  auto_deploy              = true   # Enable auto-deployment for staging
+  enable_release_trigger   = false  # Disable release trigger for staging
+  
+  depends_on = [module.artifact_registry]
+}
 
 # Cloud Run Service
 module "cloud_run" {
