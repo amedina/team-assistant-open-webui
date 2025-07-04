@@ -212,6 +212,7 @@ module "cloud_run" {
   
   # Network configuration
   vpc_connector_name = module.networking.vpc_connector_name
+  cloudsql_instances = module.database.connection_name
   
   # Service account
   service_account_email = module.iam.cloud_run_service_account_email

@@ -37,6 +37,10 @@ resource "google_service_networking_connection" "private_service_connection" {
   network                 = google_compute_network.main.id
   service                 = "servicenetworking.googleapis.com"
   reserved_peering_ranges = [google_compute_global_address.private_ip_range.name]
+  
+  lifecycle {
+    ignore_changes = [reserved_peering_ranges]
+  }
 }
 
 # Reserved IP range for private services
@@ -77,6 +81,7 @@ resource "google_compute_firewall" "allow_internal" {
   source_ranges = [
     var.vpc_connector_cidr,
     var.database_subnet_cidr,
+    "10.85.0.0/16",  # Private service connection range
   ]
 }
 
@@ -95,5 +100,22 @@ resource "google_compute_firewall" "allow_health_check" {
   source_ranges = [
     "130.211.0.0/22",
     "35.191.0.0/16",
+  ]
+}
+
+# Firewall rule to allow egress to private services
+resource "google_compute_firewall" "allow_egress_to_private_services" {
+  name      = "${var.environment}-open-webui-allow-egress-private"
+  network   = google_compute_network.main.name
+  project   = var.project_id
+  direction = "EGRESS"
+
+  allow {
+    protocol = "tcp"
+    ports    = ["5432", "6379"]  # PostgreSQL and Redis
+  }
+
+  destination_ranges = [
+    "10.85.0.0/16",  # Private service connection range
   ]
 } 
