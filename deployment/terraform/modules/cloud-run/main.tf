@@ -61,10 +61,10 @@ resource "google_cloud_run_service" "openwebui" {
             path = "/health"
             port = var.container_port
           }
-          initial_delay_seconds = 60
-          timeout_seconds      = 10
-          period_seconds       = 30
-          failure_threshold    = 3
+          initial_delay_seconds = 240
+          timeout_seconds      = 240
+          period_seconds       = 240
+          failure_threshold    = 1
         }
 
         startup_probe {
@@ -72,10 +72,10 @@ resource "google_cloud_run_service" "openwebui" {
             path = "/health"
             port = var.container_port
           }
-          initial_delay_seconds = 30
-          timeout_seconds      = 10
-          period_seconds       = 10
-          failure_threshold    = 21
+          initial_delay_seconds = 240
+          timeout_seconds      = 240
+          period_seconds       = 240
+          failure_threshold    = 1
         }
       }
     }
