@@ -90,7 +90,7 @@ variable "cloudsql_instances" {
 variable "allow_public_access" {
   description = "Allow public access to the service"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "labels" {
