@@ -25,39 +25,51 @@ variable "storage_bucket_name" {
 variable "database_tier" {
   description = "Cloud SQL instance tier"
   type        = string
-  default     = "db-g1-small"  # Production-like tier for staging
+  default     = "db-g1-small" # Production-like tier for staging
 }
 
 variable "database_disk_size" {
   description = "Database disk size in GB"
   type        = number
-  default     = 20  # Moderate size for staging
+  default     = 20 # Moderate size for staging
+}
+
+variable "database_max_disk_size" {
+  description = "Maximum database disk size in GB"
+  type        = number
+  default     = 100 # Moderate growth for staging
+}
+
+variable "enable_high_availability" {
+  description = "Enable database high availability"
+  type        = bool
+  default     = false # Disable HA in staging for cost
 }
 
 # Redis Configuration (Staging sizing)
 variable "redis_memory_size_gb" {
   description = "Redis memory size in GB"
   type        = number
-  default     = 2  # Moderate memory for staging
+  default     = 2 # Moderate memory for staging
 }
 
 variable "redis_tier" {
   description = "Redis service tier"
   type        = string
-  default     = "STANDARD_HA"  # Test HA features in staging
+  default     = "STANDARD_HA" # Test HA features in staging
 }
 
 # Networking Configuration
 variable "vpc_connector_cidr" {
   description = "CIDR range for VPC connector subnet"
   type        = string
-  default     = "10.18.0.0/28"  # Different CIDR for staging
+  default     = "10.18.0.0/28" # Different CIDR for staging
 }
 
 variable "database_subnet_cidr" {
   description = "CIDR range for database subnet"
   type        = string
-  default     = "10.19.0.0/24"  # Different CIDR for staging
+  default     = "10.19.0.0/24" # Different CIDR for staging
 }
 
 variable "vpc_connector_min_instances" {
@@ -69,7 +81,7 @@ variable "vpc_connector_min_instances" {
 variable "vpc_connector_max_instances" {
   description = "Maximum instances for VPC connector"
   type        = number
-  default     = 5  # Moderate scaling for staging
+  default     = 5 # Moderate scaling for staging
 }
 
 # Cloud Run Configuration (Staging sizing)
@@ -82,31 +94,43 @@ variable "cloud_run_service_name" {
 variable "cloud_run_cpu_limit" {
   description = "CPU limit for Cloud Run instances"
   type        = string
-  default     = "2"  # Moderate CPU for staging
+  default     = "2" # Moderate CPU for staging
 }
 
 variable "cloud_run_memory_limit" {
   description = "Memory limit for Cloud Run instances"
   type        = string
-  default     = "4Gi"  # Moderate memory for staging
+  default     = "4Gi" # Moderate memory for staging
 }
 
 variable "cloud_run_min_instances" {
   description = "Minimum number of Cloud Run instances"
   type        = number
-  default     = 1  # Keep one instance warm in staging
+  default     = 1 # Keep one instance warm in staging
 }
 
 variable "cloud_run_max_instances" {
   description = "Maximum number of Cloud Run instances"
   type        = number
-  default     = 10  # Moderate scaling for staging
+  default     = 10 # Moderate scaling for staging
+}
+
+variable "container_concurrency" {
+  description = "Maximum number of concurrent requests per container"
+  type        = number
+  default     = 80 # Moderate concurrency for staging
+}
+
+variable "timeout_seconds" {
+  description = "Timeout for requests in seconds"
+  type        = number
+  default     = 300 # Moderate timeout for staging
 }
 
 variable "uvicorn_workers" {
   description = "Number of Uvicorn workers"
   type        = string
-  default     = "2"  # Multiple workers for staging
+  default     = "2" # Multiple workers for staging
 }
 
 # Artifact Registry
@@ -156,7 +180,13 @@ variable "notification_email" {
 variable "enable_monitoring" {
   description = "Enable monitoring and alerting"
   type        = bool
-  default     = true  # Enable monitoring in staging to test alerts
+  default     = true # Enable monitoring in staging to test alerts
+}
+
+variable "allow_public_access" {
+  description = "Allow public access to the Cloud Run service"
+  type        = bool
+  default     = false # Authenticated access only in staging
 }
 
 # Labels
@@ -168,4 +198,4 @@ variable "labels" {
     environment = "staging"
     managed-by  = "terraform"
   }
-} 
+}

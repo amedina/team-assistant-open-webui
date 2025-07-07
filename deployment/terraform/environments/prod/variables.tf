@@ -25,38 +25,38 @@ variable "storage_bucket_name" {
 variable "database_tier" {
   description = "Cloud SQL instance tier"
   type        = string
-  default     = "db-g1-small"  # Production tier
+  default     = "db-g1-small" # Production tier
 }
 
 variable "database_disk_size" {
   description = "Database disk size in GB"
   type        = number
-  default     = 50  # Larger disk for production
+  default     = 50 # Larger disk for production
 }
 
 variable "database_max_disk_size" {
   description = "Maximum database disk size in GB"
   type        = number
-  default     = 500  # Allow growth in production
+  default     = 500 # Allow growth in production
 }
 
 variable "enable_high_availability" {
   description = "Enable database high availability"
   type        = bool
-  default     = true  # Enable HA in production
+  default     = true # Enable HA in production
 }
 
 # Redis Configuration (Production sizing)
 variable "redis_memory_size_gb" {
   description = "Redis memory size in GB"
   type        = number
-  default     = 4  # Larger memory for production
+  default     = 4 # Larger memory for production
 }
 
 variable "redis_tier" {
   description = "Redis service tier"
   type        = string
-  default     = "STANDARD_HA"  # High availability for production
+  default     = "STANDARD_HA" # High availability for production
 }
 
 # Networking Configuration
@@ -75,13 +75,13 @@ variable "database_subnet_cidr" {
 variable "vpc_connector_min_instances" {
   description = "Minimum instances for VPC connector"
   type        = number
-  default     = 3  # Higher minimum for production
+  default     = 3 # Higher minimum for production
 }
 
 variable "vpc_connector_max_instances" {
   description = "Maximum instances for VPC connector"
   type        = number
-  default     = 10  # Higher maximum for production
+  default     = 10 # Higher maximum for production
 }
 
 # Cloud Run Configuration (Production sizing)
@@ -94,43 +94,43 @@ variable "cloud_run_service_name" {
 variable "cloud_run_cpu_limit" {
   description = "CPU limit for Cloud Run instances"
   type        = string
-  default     = "4"  # Higher CPU for production
+  default     = "4" # Higher CPU for production
 }
 
 variable "cloud_run_memory_limit" {
   description = "Memory limit for Cloud Run instances"
   type        = string
-  default     = "8Gi"  # Higher memory for production
+  default     = "8Gi" # Higher memory for production
 }
 
 variable "cloud_run_min_instances" {
   description = "Minimum number of Cloud Run instances"
   type        = number
-  default     = 2  # Always keep instances warm in production
+  default     = 2 # Always keep instances warm in production
 }
 
 variable "cloud_run_max_instances" {
   description = "Maximum number of Cloud Run instances"
   type        = number
-  default     = 20  # Higher scaling for production
+  default     = 20 # Higher scaling for production
 }
 
 variable "container_concurrency" {
   description = "Maximum number of concurrent requests per container"
   type        = number
-  default     = 100  # Higher concurrency for production
+  default     = 100 # Higher concurrency for production
 }
 
 variable "timeout_seconds" {
   description = "Timeout for requests in seconds"
   type        = number
-  default     = 900  # Longer timeout for production
+  default     = 900 # Longer timeout for production
 }
 
 variable "uvicorn_workers" {
   description = "Number of Uvicorn workers"
   type        = string
-  default     = "4"  # Multiple workers for production
+  default     = "4" # Multiple workers for production
 }
 
 # Artifact Registry
@@ -198,7 +198,14 @@ variable "enable_backup" {
 variable "backup_retention_days" {
   description = "Number of days to retain backups"
   type        = number
-  default     = 30  # Longer retention for production
+  default     = 30 # Longer retention for production
+}
+
+# Access Control
+variable "allow_public_access" {
+  description = "Allow public access to the Cloud Run service"
+  type        = bool
+  default     = false # Authenticated access only in production
 }
 
 # Labels
@@ -210,4 +217,4 @@ variable "labels" {
     environment = "production"
     managed-by  = "terraform"
   }
-} 
+}

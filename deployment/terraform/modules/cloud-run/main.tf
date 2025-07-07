@@ -7,109 +7,149 @@ terraform {
   }
 }
 
-# Cloud Run Service
-resource "google_cloud_run_service" "openwebui" {
+# Cloud Run V2 Service
+resource "google_cloud_run_v2_service" "openwebui" {
   name     = "${var.environment}-${var.service_name}"
   location = var.region
   project  = var.project_id
 
+  labels = var.labels
+
   template {
-    metadata {
-      labels = var.labels
-      annotations = {
-        "autoscaling.knative.dev/minScale"         = var.min_instances
-        "autoscaling.knative.dev/maxScale"         = var.max_instances
-        "run.googleapis.com/cloudsql-instances"    = var.cloudsql_instances
-        "run.googleapis.com/vpc-access-connector"  = var.vpc_connector_name
-        "run.googleapis.com/vpc-access-egress"     = "private-ranges-only"
-        "run.googleapis.com/cpu-throttling"        = "false"
+    labels = var.labels
+
+    # Scaling configuration (converted from annotations)
+    scaling {
+      min_instance_count = var.min_instances
+      max_instance_count = var.max_instances
+    }
+
+    # Service account
+    service_account = var.service_account_email
+
+    # Execution environment
+    execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
+
+    # Session affinity 
+    session_affinity = false
+
+    # Maximum request timeout
+    timeout = "${var.timeout_seconds}s"
+
+    # VPC access configuration
+    vpc_access {
+      connector = var.vpc_connector_name
+      egress    = "PRIVATE_RANGES_ONLY"
+    }
+
+    # Cloud SQL instances configuration
+    dynamic "volumes" {
+      for_each = var.cloudsql_instances != "" ? [1] : []
+      content {
+        name = "cloudsql"
+        cloud_sql_instance {
+          instances = [var.cloudsql_instances]
+        }
       }
     }
 
-    spec {
-      service_account_name = var.service_account_email
-      container_concurrency = var.container_concurrency
-      timeout_seconds      = var.timeout_seconds
+    containers {
+      image = var.container_image
+      name  = "open-webui"
 
-      containers {
-        image = var.container_image
+      ports {
+        container_port = var.container_port
+        name           = "http1"
+      }
 
-        ports {
-          container_port = var.container_port
-          name          = "http1"
+      # Resource configuration
+      resources {
+        limits = {
+          cpu    = var.cpu_limit
+          memory = var.memory_limit
         }
+        cpu_idle          = false # Equivalent to cpu-throttling = false
+        startup_cpu_boost = true
+      }
 
-        resources {
-          limits = {
-            cpu    = var.cpu_limit
-            memory = var.memory_limit
-          }
+      # Environment variables
+      dynamic "env" {
+        for_each = var.environment_variables
+        content {
+          name  = env.key
+          value = env.value
         }
+      }
 
-        # Environment variables
-        dynamic "env" {
-          for_each = var.environment_variables
-          content {
-            name  = env.key
-            value = env.value
-          }
+      # Cloud SQL socket mounting
+      dynamic "volume_mounts" {
+        for_each = var.cloudsql_instances != "" ? [1] : []
+        content {
+          name       = "cloudsql"
+          mount_path = "/cloudsql"
         }
+      }
 
-        # Health check
-        liveness_probe {
-          http_get {
-            path = "/health"
-            port = var.container_port
-          }
-          initial_delay_seconds = 240
-          timeout_seconds      = 240
-          period_seconds       = 240
-          failure_threshold    = 1
+      # Startup probe
+      startup_probe {
+        timeout_seconds   = 240
+        period_seconds    = 240
+        failure_threshold = 1
+
+        http_get {
+          path = "/health"
+          port = var.container_port
         }
+      }
 
-        startup_probe {
-          http_get {
-            path = "/health"
-            port = var.container_port
-          }
-          initial_delay_seconds = 240
-          timeout_seconds      = 240
-          period_seconds       = 240
-          failure_threshold    = 1
+      # Liveness probe
+      liveness_probe {
+        timeout_seconds   = 240
+        period_seconds    = 240
+        failure_threshold = 1
+
+        http_get {
+          path = "/health"
+          port = var.container_port
         }
       }
     }
+
+    # Max concurrent requests per instance
+    max_instance_request_concurrency = var.container_concurrency
   }
 
+  # Traffic configuration
   traffic {
-    percent         = 100
-    latest_revision = true
+    percent = 100
+    type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
   }
-
-  autogenerate_revision_name = true
 
   lifecycle {
     ignore_changes = [
-      template[0].metadata[0].annotations["run.googleapis.com/operation-id"],
-      template[0].metadata[0].annotations["run.googleapis.com/operation-id"]
+      # Ignore runtime-managed annotations
+      template[0].annotations,
+      annotations
     ]
   }
 }
 
 # IAM policy for public access (if enabled)
-resource "google_cloud_run_service_iam_member" "public_access" {
+resource "google_cloud_run_v2_service_iam_member" "public_access" {
   count    = var.allow_public_access ? 1 : 0
-  service  = google_cloud_run_service.openwebui.name
-  location = google_cloud_run_service.openwebui.location
+  name     = google_cloud_run_v2_service.openwebui.name
+  location = google_cloud_run_v2_service.openwebui.location
+  project  = var.project_id
   role     = "roles/run.invoker"
   member   = "allUsers"
 }
 
 # IAM policy for authenticated access (if public access is disabled)
-resource "google_cloud_run_service_iam_member" "authenticated_access" {
+resource "google_cloud_run_v2_service_iam_member" "authenticated_access" {
   count    = var.allow_public_access ? 0 : 1
-  service  = google_cloud_run_service.openwebui.name
-  location = google_cloud_run_service.openwebui.location
+  name     = google_cloud_run_v2_service.openwebui.name
+  location = google_cloud_run_v2_service.openwebui.location
+  project  = var.project_id
   role     = "roles/run.invoker"
   member   = "allAuthenticatedUsers"
-} 
+}
