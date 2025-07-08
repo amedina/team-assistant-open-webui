@@ -97,4 +97,10 @@ variable "labels" {
   description = "Labels to apply to the Cloud Run service"
   type        = map(string)
   default     = {}
-} 
+}
+
+variable "storage_bucket_name" {
+  description = "Name of the Cloud Storage bucket for volume mounts"
+  type        = string
+  default     = ""
+}

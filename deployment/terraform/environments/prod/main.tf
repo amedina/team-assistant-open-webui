@@ -229,6 +229,9 @@ module "cloud_run" {
   vpc_connector_name = module.networking.vpc_connector_id
   cloudsql_instances = module.database.connection_name
 
+  # Storage configuration
+  storage_bucket_name = module.storage.bucket_name
+
   # Access control
   allow_public_access = var.allow_public_access
 

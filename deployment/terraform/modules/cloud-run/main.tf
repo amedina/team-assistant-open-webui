@@ -53,6 +53,42 @@ resource "google_cloud_run_v2_service" "openwebui" {
       }
     }
 
+    # Cloud Storage volume for persistent data
+    dynamic "volumes" {
+      for_each = var.storage_bucket_name != "" ? [1] : []
+      content {
+        name = "app-data-storage"
+        gcs {
+          bucket    = var.storage_bucket_name
+          read_only = false
+        }
+      }
+    }
+
+    # Cloud Storage volume for uploads (specific directory)
+    dynamic "volumes" {
+      for_each = var.storage_bucket_name != "" ? [1] : []
+      content {
+        name = "uploads-storage"
+        gcs {
+          bucket    = var.storage_bucket_name
+          read_only = false
+        }
+      }
+    }
+
+    # Cloud Storage volume for cache (specific directory)
+    dynamic "volumes" {
+      for_each = var.storage_bucket_name != "" ? [1] : []
+      content {
+        name = "cache-storage"
+        gcs {
+          bucket    = var.storage_bucket_name
+          read_only = false
+        }
+      }
+    }
+
     containers {
       image = var.container_image
       name  = "open-webui"
@@ -87,6 +123,31 @@ resource "google_cloud_run_v2_service" "openwebui" {
         content {
           name       = "cloudsql"
           mount_path = "/cloudsql"
+        }
+      }
+
+      # Cloud Storage volume mounts for persistent data
+      dynamic "volume_mounts" {
+        for_each = var.storage_bucket_name != "" ? [1] : []
+        content {
+          name       = "app-data-storage"
+          mount_path = "/app/backend/data"
+        }
+      }
+
+      dynamic "volume_mounts" {
+        for_each = var.storage_bucket_name != "" ? [1] : []
+        content {
+          name       = "uploads-storage"
+          mount_path = "/app/backend/uploads"
+        }
+      }
+
+      dynamic "volume_mounts" {
+        for_each = var.storage_bucket_name != "" ? [1] : []
+        content {
+          name       = "cache-storage"
+          mount_path = "/app/backend/cache"
         }
       }
 

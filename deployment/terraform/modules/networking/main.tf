@@ -51,15 +51,15 @@ resource "google_compute_global_address" "private_ip_range" {
 
 # VPC Access Connector for Cloud Run
 resource "google_vpc_access_connector" "connector" {
-  name          = "${var.environment}-openwebui-conn"
-  region        = var.region
+  name   = "${var.environment}-openwebui-conn"
+  region = var.region
   subnet {
     name = google_compute_subnetwork.vpc_connector.name
   }
   min_instances = var.vpc_connector_min_instances
   max_instances = var.vpc_connector_max_instances
   project       = var.project_id
-  
+
   depends_on = [google_compute_subnetwork.vpc_connector]
 }
 
@@ -96,4 +96,4 @@ resource "google_compute_firewall" "allow_health_check" {
     "130.211.0.0/22",
     "35.191.0.0/16",
   ]
-} 
+}

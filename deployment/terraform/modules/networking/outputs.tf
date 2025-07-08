@@ -26,4 +26,4 @@ output "database_subnet_name" {
 output "private_service_connection_id" {
   description = "ID of the private service connection"
   value       = google_service_networking_connection.private_service_connection.id
-} 
+}

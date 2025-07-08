@@ -30,6 +30,12 @@ variable "github_repo" {
   default     = ""
 }
 
+variable "github_connection_name" {
+  description = "Name of the GitHub connection for Cloud Build"
+  type        = string
+  default     = "github-connection"
+}
+
 variable "trigger_branch" {
   description = "Git branch to trigger builds"
   type        = string
@@ -67,7 +73,7 @@ variable "build_machine_type" {
 variable "build_timeout_seconds" {
   description = "Build timeout in seconds"
   type        = number
-  default     = 1200  # 20 minutes
+  default     = 1200 # 20 minutes
 }
 
 variable "included_files" {
@@ -79,7 +85,7 @@ variable "included_files" {
 variable "ignored_files" {
   description = "Files to ignore in the build trigger"
   type        = list(string)
-  default     = [
+  default = [
     "README.md",
     "docs/**",
     "terraform/**",
@@ -97,4 +103,4 @@ variable "release_tag_pattern" {
   description = "Tag pattern for release builds"
   type        = string
   default     = "v*"
-} 
+}
