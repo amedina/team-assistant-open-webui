@@ -10,12 +10,12 @@ output "vpc_network_name" {
 
 output "vpc_connector_name" {
   description = "Name of the VPC connector"
-  value       = google_vpc_access_connector.connector.name
+  value       = try(google_vpc_access_connector.connector[0].name, null)
 }
 
 output "vpc_connector_id" {
   description = "ID of the VPC connector"
-  value       = google_vpc_access_connector.connector.id
+  value       = try(google_vpc_access_connector.connector[0].id, null)
 }
 
 output "database_subnet_name" {
@@ -26,4 +26,4 @@ output "database_subnet_name" {
 output "private_service_connection_id" {
   description = "ID of the private service connection"
   value       = google_service_networking_connection.private_service_connection.id
-} 
+}

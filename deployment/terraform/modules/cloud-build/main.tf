@@ -9,12 +9,15 @@ terraform {
 
 # Cloud Build trigger for automatic builds
 resource "google_cloudbuild_trigger" "main" {
-  project         = var.project_id
-  name            = "${var.environment}-open-webui-trigger"
-  description     = "Trigger for Open WebUI ${var.environment} environment"
+  project     = var.project_id
+  location    = var.region
+  name        = "${var.environment}-open-webui-trigger"
+  description = "Trigger for Open WebUI ${var.environment} environment"
+
+  # Add service account back (this was missing and likely causing the error)
   service_account = var.service_account_email
-  
-  # Trigger on push to specific branch
+
+  # Trigger on push to specific branch (simplified GitHub configuration)
   github {
     owner = var.github_owner
     name  = var.github_repo
@@ -29,7 +32,7 @@ resource "google_cloudbuild_trigger" "main" {
       name = "gcr.io/cloud-builders/docker"
       args = [
         "build",
-        "-t", "${var.artifact_registry_url}/open-webui:$COMMIT_SHA",
+        "-t", "${var.artifact_registry_url}/open-webui:$SHORT_SHA",
         "-t", "${var.artifact_registry_url}/open-webui:latest",
         "-f", "Dockerfile",
         "."
@@ -39,53 +42,31 @@ resource "google_cloudbuild_trigger" "main" {
     step {
       name = "gcr.io/cloud-builders/docker"
       args = [
-        "push", 
-        "${var.artifact_registry_url}/open-webui:$COMMIT_SHA"
+        "push",
+        "${var.artifact_registry_url}/open-webui:$SHORT_SHA"
       ]
     }
 
     step {
       name = "gcr.io/cloud-builders/docker"
       args = [
-        "push", 
+        "push",
         "${var.artifact_registry_url}/open-webui:latest"
       ]
     }
 
-    # Deploy to Cloud Run (if enabled)
-    dynamic "step" {
-      for_each = var.auto_deploy ? [1] : []
-      content {
-        name = "gcr.io/cloud-builders/gcloud"
-        args = [
-          "run", "deploy", "${var.environment}-${var.cloud_run_service_name}",
-          "--image", "${var.artifact_registry_url}/open-webui:$COMMIT_SHA",
-          "--region", var.region,
-          "--platform", "managed",
-          "--quiet"
-        ]
-      }
-    }
-
-    # Available substitutions
     substitutions = {
       _ENVIRONMENT = var.environment
       _REGION      = var.region
     }
 
-    # Build options
     options {
-      logging = "CLOUD_LOGGING_ONLY"
+      logging      = "CLOUD_LOGGING_ONLY"
       machine_type = var.build_machine_type
     }
 
-    # Build timeout
     timeout = "${var.build_timeout_seconds}s"
   }
-
-  # Include/exclude files
-  included_files = var.included_files
-  ignored_files  = var.ignored_files
 
   tags = ["${var.environment}", "open-webui"]
 }
@@ -94,10 +75,11 @@ resource "google_cloudbuild_trigger" "main" {
 resource "google_cloudbuild_trigger" "release" {
   count           = var.enable_release_trigger ? 1 : 0
   project         = var.project_id
+  location        = var.region # Match the region where repository connection exists
   name            = "${var.environment}-open-webui-release-trigger"
   description     = "Release trigger for Open WebUI ${var.environment} environment"
   service_account = var.service_account_email
-  
+
   # Trigger on tag creation
   github {
     owner = var.github_owner
@@ -123,7 +105,7 @@ resource "google_cloudbuild_trigger" "release" {
     step {
       name = "gcr.io/cloud-builders/docker"
       args = [
-        "push", 
+        "push",
         "${var.artifact_registry_url}/open-webui:$TAG_NAME"
       ]
     }
@@ -131,7 +113,7 @@ resource "google_cloudbuild_trigger" "release" {
     step {
       name = "gcr.io/cloud-builders/docker"
       args = [
-        "push", 
+        "push",
         "${var.artifact_registry_url}/open-webui:stable"
       ]
     }
@@ -157,7 +139,7 @@ resource "google_cloudbuild_trigger" "release" {
     }
 
     options {
-      logging = "CLOUD_LOGGING_ONLY"
+      logging      = "CLOUD_LOGGING_ONLY"
       machine_type = var.build_machine_type
     }
 
@@ -167,10 +149,71 @@ resource "google_cloudbuild_trigger" "release" {
   tags = ["${var.environment}", "open-webui", "release"]
 }
 
+# Manual trigger as fallback (can be used if GitHub integration fails)
+resource "google_cloudbuild_trigger" "manual" {
+  project     = var.project_id
+  location    = var.region
+  name        = "${var.environment}-open-webui-manual-trigger"
+  description = "Manual trigger for Open WebUI ${var.environment} environment"
+
+  service_account = var.service_account_email
+
+  # Manual trigger - no source configuration needed
+  source_to_build {
+    uri       = var.repository_url
+    ref       = "refs/heads/${var.trigger_branch}"
+    repo_type = "GITHUB"
+  }
+
+  # Same build configuration as automatic trigger
+  build {
+    step {
+      name = "gcr.io/cloud-builders/docker"
+      args = [
+        "build",
+        "-t", "${var.artifact_registry_url}/open-webui:$SHORT_SHA",
+        "-t", "${var.artifact_registry_url}/open-webui:latest",
+        "-f", "Dockerfile",
+        "."
+      ]
+    }
+
+    step {
+      name = "gcr.io/cloud-builders/docker"
+      args = [
+        "push",
+        "${var.artifact_registry_url}/open-webui:$SHORT_SHA"
+      ]
+    }
+
+    step {
+      name = "gcr.io/cloud-builders/docker"
+      args = [
+        "push",
+        "${var.artifact_registry_url}/open-webui:latest"
+      ]
+    }
+
+    substitutions = {
+      _ENVIRONMENT = var.environment
+      _REGION      = var.region
+    }
+
+    options {
+      logging      = "CLOUD_LOGGING_ONLY"
+      machine_type = var.build_machine_type
+    }
+
+    timeout = "${var.build_timeout_seconds}s"
+  }
+
+  tags = ["${var.environment}", "open-webui", "manual"]
+}
+
 # IAM binding for Cloud Build to deploy to Cloud Run
 resource "google_project_iam_member" "cloud_build_run_developer" {
   count   = var.auto_deploy ? 1 : 0
   project = var.project_id
   role    = "roles/run.developer"
   member  = "serviceAccount:${var.service_account_email}"
-} 
+}

@@ -79,6 +79,7 @@ variable "timeout_seconds" {
 variable "vpc_connector_name" {
   description = "VPC connector name for private network access"
   type        = string
+  default     = ""
 }
 
 variable "cloudsql_instances" {
@@ -97,4 +98,9 @@ variable "labels" {
   description = "Labels to apply to the Cloud Run service"
   type        = map(string)
   default     = {}
-} 
+}
+
+variable "storage_bucket_name" {
+  description = "Name of the GCS bucket for persistent storage volumes"
+  type        = string
+}

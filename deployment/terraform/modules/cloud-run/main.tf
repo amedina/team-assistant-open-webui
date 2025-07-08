@@ -7,109 +7,150 @@ terraform {
   }
 }
 
-# Cloud Run Service
-resource "google_cloud_run_service" "openwebui" {
+# Cloud Run Service V2
+resource "google_cloud_run_v2_service" "openwebui" {
   name     = "${var.environment}-${var.service_name}"
   location = var.region
   project  = var.project_id
 
   template {
-    metadata {
-      labels = var.labels
-      annotations = {
-        "autoscaling.knative.dev/minScale"         = var.min_instances
-        "autoscaling.knative.dev/maxScale"         = var.max_instances
-        "run.googleapis.com/cloudsql-instances"    = var.cloudsql_instances
-        "run.googleapis.com/vpc-access-connector"  = var.vpc_connector_name
-        "run.googleapis.com/vpc-access-egress"     = "private-ranges-only"
-        "run.googleapis.com/cpu-throttling"        = "false"
+    labels = var.labels
+
+    execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
+    service_account       = var.service_account_email
+    timeout               = "${var.timeout_seconds}s"
+
+    scaling {
+      min_instance_count = var.min_instances
+      max_instance_count = var.max_instances
+    }
+
+    # Cloud Storage FUSE volumes for persistent storage
+    volumes {
+      name = "app-data-storage"
+      gcs {
+        bucket = var.storage_bucket_name
       }
     }
 
-    spec {
-      service_account_name = var.service_account_email
-      container_concurrency = var.container_concurrency
-      timeout_seconds      = var.timeout_seconds
-
-      containers {
-        image = var.container_image
-
-        ports {
-          container_port = var.container_port
-          name          = "http1"
-        }
-
-        resources {
-          limits = {
-            cpu    = var.cpu_limit
-            memory = var.memory_limit
-          }
-        }
-
-        # Environment variables
-        dynamic "env" {
-          for_each = var.environment_variables
-          content {
-            name  = env.key
-            value = env.value
-          }
-        }
-
-        # Health check
-        liveness_probe {
-          http_get {
-            path = "/health"
-            port = var.container_port
-          }
-          initial_delay_seconds = 240
-          timeout_seconds      = 240
-          period_seconds       = 240
-          failure_threshold    = 1
-        }
-
-        startup_probe {
-          http_get {
-            path = "/health"
-            port = var.container_port
-          }
-          initial_delay_seconds = 240
-          timeout_seconds      = 240
-          period_seconds       = 240
-          failure_threshold    = 1
-        }
+    volumes {
+      name = "uploads-storage"
+      gcs {
+        bucket = var.storage_bucket_name
       }
     }
+
+    volumes {
+      name = "cache-storage"
+      gcs {
+        bucket = var.storage_bucket_name
+      }
+    }
+
+    containers {
+      image = var.container_image
+
+      ports {
+        container_port = var.container_port
+        name           = "http1"
+      }
+
+      # Resource configuration using V2 structure
+      resources {
+        limits = {
+          cpu    = var.cpu_limit
+          memory = var.memory_limit
+        }
+      }
+
+      # Volume mounts for persistent storage
+      volume_mounts {
+        name       = "app-data-storage"
+        mount_path = "/app/backend/data"
+      }
+
+      volume_mounts {
+        name       = "uploads-storage"
+        mount_path = "/app/backend/uploads"
+      }
+
+      volume_mounts {
+        name       = "cache-storage"
+        mount_path = "/app/backend/cache"
+      }
+
+      # Environment variables
+      dynamic "env" {
+        for_each = var.environment_variables
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
+
+      # Health check probes
+      liveness_probe {
+        http_get {
+          path = "/health"
+          port = var.container_port
+        }
+        initial_delay_seconds = 240
+        timeout_seconds       = 240
+        period_seconds        = 240
+        failure_threshold     = 1
+      }
+
+      startup_probe {
+        http_get {
+          path = "/health"
+          port = var.container_port
+        }
+        initial_delay_seconds = 240
+        timeout_seconds       = 240
+        period_seconds        = 240
+        failure_threshold     = 1
+      }
+    }
+
+    # VPC configuration (when VPC connector is provided)
+    dynamic "vpc_access" {
+      for_each = var.vpc_connector_name != "" ? [1] : []
+      content {
+        connector = var.vpc_connector_name
+        egress    = "PRIVATE_RANGES_ONLY"
+      }
+    }
+
+    # Container concurrency
+    max_instance_request_concurrency = var.container_concurrency
   }
 
   traffic {
-    percent         = 100
-    latest_revision = true
+    percent = 100
+    type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
   }
-
-  autogenerate_revision_name = true
 
   lifecycle {
     ignore_changes = [
-      template[0].metadata[0].annotations["run.googleapis.com/operation-id"],
-      template[0].metadata[0].annotations["run.googleapis.com/operation-id"]
+      template[0].annotations["run.googleapis.com/operation-id"]
     ]
   }
 }
 
 # IAM policy for public access (if enabled)
-resource "google_cloud_run_service_iam_member" "public_access" {
+resource "google_cloud_run_v2_service_iam_member" "public_access" {
   count    = var.allow_public_access ? 1 : 0
-  service  = google_cloud_run_service.openwebui.name
-  location = google_cloud_run_service.openwebui.location
+  name     = google_cloud_run_v2_service.openwebui.name
+  location = google_cloud_run_v2_service.openwebui.location
   role     = "roles/run.invoker"
   member   = "allUsers"
 }
 
 # IAM policy for authenticated access (if public access is disabled)
-resource "google_cloud_run_service_iam_member" "authenticated_access" {
+resource "google_cloud_run_v2_service_iam_member" "authenticated_access" {
   count    = var.allow_public_access ? 0 : 1
-  service  = google_cloud_run_service.openwebui.name
-  location = google_cloud_run_service.openwebui.location
+  name     = google_cloud_run_v2_service.openwebui.name
+  location = google_cloud_run_v2_service.openwebui.location
   role     = "roles/run.invoker"
   member   = "allAuthenticatedUsers"
-} 
+}

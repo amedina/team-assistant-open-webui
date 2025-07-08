@@ -20,7 +20,7 @@ variable "vpc_connector_cidr" {
 }
 
 variable "database_subnet_cidr" {
-  description = "CIDR range for database subnet"  
+  description = "CIDR range for database subnet"
   type        = string
   default     = "10.9.0.0/24"
 }
@@ -34,5 +34,11 @@ variable "vpc_connector_min_instances" {
 variable "vpc_connector_max_instances" {
   description = "Maximum instances for VPC connector"
   type        = number
-  default     = 10
-} 
+  default     = 5
+}
+
+variable "enable_vpc_connector" {
+  description = "Enable VPC Access Connector"
+  type        = bool
+  default     = true
+}

@@ -72,8 +72,8 @@ output "vpc_network_name" {
 }
 
 output "vpc_connector_name" {
-  description = "VPC connector name"
-  value       = module.networking.vpc_connector_name
+  description = "VPC connector name (if enabled)"
+  value       = try(module.networking.vpc_connector_name, "vpc-connector-disabled")
 }
 
 # Service Account Outputs
@@ -118,11 +118,11 @@ output "deployment_summary" {
 output "security_summary" {
   description = "Security configuration summary"
   value = {
-    database_deletion_protection    = false  # Disabled for staging
-    high_availability_enabled      = false  # Disabled for staging
-    backup_enabled                = true
-    vpc_egress_control            = "private-ranges-only"
+    database_deletion_protection = false # Disabled for staging
+    high_availability_enabled    = false # Disabled for staging
+    backup_enabled               = true
+    vpc_egress_control           = "private-ranges-only"
     oauth_enabled                = true
-    signup_enabled               = true   # Enabled for staging testing
+    signup_enabled               = true # Enabled for staging testing
   }
-} 
+}
