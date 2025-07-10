@@ -15,7 +15,7 @@ resource "google_cloudbuild_trigger" "main" {
   description = "Trigger for Open WebUI ${var.environment} environment"
 
   # Add service account back (this was missing and likely causing the error)
-  service_account = var.service_account_email
+  service_account = "projects/-/serviceAccounts/${var.service_account_email}"
 
   # Trigger on push to specific branch (simplified GitHub configuration)
   github {
@@ -156,7 +156,8 @@ resource "google_cloudbuild_trigger" "manual" {
   name        = "${var.environment}-open-webui-manual-trigger"
   description = "Manual trigger for Open WebUI ${var.environment} environment"
 
-  service_account = var.service_account_email
+  service_account = "projects/-/serviceAccounts/${var.service_account_email}"
+
 
   # Manual trigger - no source configuration needed
   source_to_build {
