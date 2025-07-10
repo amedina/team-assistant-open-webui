@@ -69,7 +69,7 @@ variable "vpc_connector_min_instances" {
 variable "vpc_connector_max_instances" {
   description = "Maximum instances for VPC connector"
   type        = number
-  default     = 5  # Moderate scaling for staging
+  default     = 3  # Moderate scaling for staging
 }
 
 # Cloud Run Configuration (Staging sizing)
@@ -100,7 +100,7 @@ variable "cloud_run_min_instances" {
 variable "cloud_run_max_instances" {
   description = "Maximum number of Cloud Run instances"
   type        = number
-  default     = 10  # Moderate scaling for staging
+  default     = 5  # Moderate scaling for staging
 }
 
 variable "uvicorn_workers" {
