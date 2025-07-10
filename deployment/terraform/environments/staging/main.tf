@@ -239,6 +239,7 @@ module "monitoring" {
 
   # Monitoring targets
   cloud_run_service_name = module.cloud_run.service_name
+  cloud_run_service_url = module.cloud_run.service_url
   database_instance_id   = module.database.instance_id
   redis_instance_id      = module.redis.instance_id
 
