@@ -116,7 +116,7 @@ resource "google_cloud_run_v2_service" "openwebui" {
     dynamic "vpc_access" {
       for_each = var.vpc_connector_name != "" ? [1] : []
       content {
-        connector = var.vpc_connector_name
+        connector = "projects/${var.project_id}/locations/${var.region}/connectors/${var.vpc_connector_name}"
         egress    = "PRIVATE_RANGES_ONLY"
       }
     }
