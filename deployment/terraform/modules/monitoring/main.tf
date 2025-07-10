@@ -36,7 +36,7 @@ resource "google_monitoring_uptime_check_config" "cloud_run_uptime" {
     type = "uptime_url"
     labels = {
       project_id = var.project_id
-      host       = var.cloud_run_service_url
+      host       = replace(var.cloud_run_service_url, "https://", "")
     }
   }
   
@@ -58,7 +58,7 @@ resource "google_monitoring_alert_policy" "uptime_alert" {
     condition_threshold {
       filter          = "metric.type=\"monitoring.googleapis.com/uptime_check/check_passed\" resource.type=\"uptime_url\""
       duration        = "300s"
-      comparison      = "COMPARISON_EQ"
+      comparison      = "COMPARISON_GT"
       threshold_value = 0
       
       aggregations {
