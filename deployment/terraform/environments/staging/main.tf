@@ -68,7 +68,7 @@ module "networking" {
   database_subnet_cidr        = var.database_subnet_cidr
   vpc_connector_min_instances = var.vpc_connector_min_instances
   vpc_connector_max_instances = var.vpc_connector_max_instances
-  enable_vpc_connector        = false # Temporarily disabled to avoid quota issues
+  enable_vpc_connector        = true # Temporarily disabled to avoid quota issues
 
   depends_on = [module.project_services]
 }
