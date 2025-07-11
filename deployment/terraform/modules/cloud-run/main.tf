@@ -57,6 +57,7 @@ resource "google_cloud_run_v2_service" "openwebui" {
 
       # Resource configuration using V2 structure
       resources {
+        startup_cpu_boost = true
         limits = {
           cpu    = var.cpu_limit
           memory = var.memory_limit
@@ -173,6 +174,6 @@ resource "null_resource" "initial_image_build" {
   }
 
   provisioner "local-exec" {
-    command = "gcloud builds submit --config=${path.module}/../../../cloudbuild-initial.yaml --project=${var.project_id} --region=${var.region} --substitutions=_ARTIFACT_REGISTRY_URL=${var.artifact_repository_url} ${path.module}/../../../../"
+    command = "gcloud builds submit --config=${path.module}/../../../cloudbuild-initial.yaml --project=${var.project_id} --region=${var.region} --machine-type=E2_HIGHCPU_8 --substitutions=_ARTIFACT_REGISTRY_URL=${var.artifact_repository_url} ${path.module}/../../../../"
   }
 }
