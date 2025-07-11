@@ -156,7 +156,7 @@ module "cloud_build" {
   repository_url         = var.repository_url
   github_owner           = var.github_owner
   github_repo            = var.github_repo
-  trigger_branch         = "main" # Use main branch
+  trigger_branch         = "ta-main" # Use main branch
   artifact_registry_url  = module.artifact_registry.repository_url
   service_account_email  = module.iam.cloud_build_service_account_email
   cloud_run_service_name = var.cloud_run_service_name
