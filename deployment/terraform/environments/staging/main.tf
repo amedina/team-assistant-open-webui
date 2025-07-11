@@ -174,9 +174,11 @@ module "cloud_run" {
   environment  = local.environment
   service_name = var.cloud_run_service_name
 
-  # Container configuration  
-  container_image = "${module.artifact_registry.repository_url}/open-webui:latest"
-  container_port  = 8080
+  # Container configuration
+  artifact_repository_name = module.artifact_registry.repository_name
+  artifact_repository_url  = module.artifact_registry.repository_url
+  container_image          = "${module.artifact_registry.repository_url}/open-webui:latest"
+  container_port           = 8080
 
   # Storage configuration for Cloud Storage FUSE volumes
   storage_bucket_name = module.storage.bucket_name

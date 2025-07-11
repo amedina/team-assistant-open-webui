@@ -135,6 +135,10 @@ resource "google_cloud_run_v2_service" "openwebui" {
       template[0].annotations["run.googleapis.com/operation-id"]
     ]
   }
+
+  # Lets wait for initial build before creating cloud run container
+  depends_on = [null_resource.initial_image_build]
+
 }
 
 # IAM policy for public access (if enabled)
@@ -153,4 +157,22 @@ resource "google_cloud_run_v2_service_iam_member" "authenticated_access" {
   location = google_cloud_run_v2_service.openwebui.location
   role     = "roles/run.invoker"
   member   = "allAuthenticatedUsers"
+}
+
+data "google_artifact_registry_repository" "openwebui" {
+  location      = var.region
+  project       = var.project_id
+  repository_id = var.artifact_repository_name
+}
+
+# Generates initial image and pushes to artifact registry, to be used by cloud run container
+# @TODO Skip generating the image if one already exists, except when Dockerfile changes.
+resource "null_resource" "initial_image_build" {
+  triggers = {
+    build_trigger = timestamp()
+  }
+
+  provisioner "local-exec" {
+    command = "gcloud builds submit --config=${path.module}/../../../cloudbuild-initial.yaml --project=${var.project_id} --region=${var.region} --substitutions=_ARTIFACT_REGISTRY_URL=${var.artifact_repository_url} ${path.module}/../../../../"
+  }
 }

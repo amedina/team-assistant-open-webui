@@ -208,7 +208,7 @@ resource "google_cloudbuild_trigger" "manual" {
     timeout = "${var.build_timeout_seconds}s"
   }
 
-  tags = ["${var.environment}", "open-webui", "manual"]
+  tags = [var.environment, "open-webui", "manual"]
 }
 
 # IAM binding for Cloud Build to deploy to Cloud Run

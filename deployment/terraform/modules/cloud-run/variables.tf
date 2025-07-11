@@ -104,3 +104,13 @@ variable "storage_bucket_name" {
   description = "Name of the GCS bucket for persistent storage volumes"
   type        = string
 }
+
+variable "artifact_repository_name" {
+  description = "Name of the Artifact Registry repository"
+  type        = string
+}
+
+variable "artifact_repository_url" {
+  description = "URL of the Artifact Registry repository"
+  type        = string
+}
