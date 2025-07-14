@@ -34,7 +34,7 @@ resource "random_password" "db_password" {
 # Cloud SQL PostgreSQL instance
 resource "google_sql_database_instance" "postgresql" {
   name                = "${var.environment}-open-webui-postgresql"
-  database_version    = "POSTGRES_15"
+  database_version    = "POSTGRES_17"
   project             = var.project_id
   region              = var.region
   deletion_protection = var.environment == "prod" ? true : false
@@ -67,27 +67,6 @@ resource "google_sql_database_instance" "postgresql" {
       enable_private_path_for_google_cloud_services = true
 
       # No authorized networks for private IP since we're using private networking
-    }
-
-    # Database flags for optimization
-    database_flags {
-      name  = "log_statement"
-      value = "all"
-    }
-
-    database_flags {
-      name  = "log_min_duration_statement"
-      value = "1000"
-    }
-
-    database_flags {
-      name  = "shared_preload_libraries"
-      value = "pg_stat_statements"
-    }
-
-    database_flags {
-      name  = "max_connections"
-      value = var.max_connections
     }
 
     # Maintenance window
@@ -169,7 +148,7 @@ resource "google_sql_database_instance" "read_replica" {
   count = var.environment == "prod" && var.enable_read_replica ? 1 : 0
 
   name                 = "${var.environment}-open-webui-postgresql-replica"
-  database_version     = "POSTGRES_15"
+  database_version     = "POSTGRES_17"
   project              = var.project_id
   region               = var.replica_region
   master_instance_name = google_sql_database_instance.postgresql.name
