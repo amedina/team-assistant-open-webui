@@ -25,7 +25,8 @@ locals {
     "logging.googleapis.com",
     "iamcredentials.googleapis.com",
     "cloudtrace.googleapis.com",
-    "container.googleapis.com"
+    "container.googleapis.com",
+    "servicenetworking.googleapis.com",
   ]
 }
 
