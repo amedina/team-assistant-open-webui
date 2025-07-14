@@ -126,6 +126,7 @@ variable "oauth_client_secret_secret_id" {
 variable "agent_engine_secret_id" {
   description = "Secret Manager secret ID for agent engine resource ID"
   type        = string
+  default = ""
 }
 
 variable "storage_bucket_name" {

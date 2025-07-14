@@ -172,7 +172,7 @@ module "oauth" {
 }
 
 # Configure Agent Engine (external resource reference)
-module "agent_engine" {
+/*module "agent_engine" {
   source = "../../modules/agent-engine"
 
   project_id                      = var.project_id
@@ -186,7 +186,7 @@ module "agent_engine" {
   cloud_run_service_account_email = module.iam.cloud_run_service_account_email
 
   depends_on = [module.secret_manager, module.iam]
-}
+}*/
 
 # Deploy Cloud Run service
 module "cloud_run" {
@@ -210,7 +210,7 @@ module "cloud_run" {
   database_url_secret_id        = module.secret_manager.database_url_id
   redis_url_secret_id           = module.secret_manager.redis_url_id
   oauth_client_secret_secret_id = module.secret_manager.oauth_client_secret_id
-  agent_engine_secret_id        = module.secret_manager.external_agent_engine_id_secret_id
+  #agent_engine_secret_id        = module.secret_manager.external_agent_engine_id_secret_id
 
   # Configuration
   oauth_client_id     = var.oauth_client_id
