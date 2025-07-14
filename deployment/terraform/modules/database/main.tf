@@ -34,7 +34,7 @@ resource "random_password" "db_password" {
 # Cloud SQL PostgreSQL instance
 resource "google_sql_database_instance" "postgresql" {
   name                = "${var.environment}-open-webui-postgresql"
-  database_version    = "POSTGRES_15"
+  database_version    = "POSTGRES_15" # Later versions will require enterprise tier
   project             = var.project_id
   region              = var.region
   deletion_protection = var.environment == "prod" ? true : false
@@ -148,7 +148,7 @@ resource "google_sql_database_instance" "read_replica" {
   count = var.environment == "prod" && var.enable_read_replica ? 1 : 0
 
   name                 = "${var.environment}-open-webui-postgresql-replica"
-  database_version     = "POSTGRES_15"
+  database_version     = "POSTGRES_15" # Later versions will require enterprise tier
   project              = var.project_id
   region               = var.replica_region
   master_instance_name = google_sql_database_instance.postgresql.name
