@@ -2,44 +2,82 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "~> 5.0"
+      version = ">= 4.0.0"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.0"
     }
   }
 }
 
-# Cloud SQL PostgreSQL Instance
-resource "google_sql_database_instance" "postgres" {
-  name             = "${var.environment}-open-webui-db"
-  database_version = var.database_version
-  region           = var.region
-  project          = var.project_id
+locals {
+  common_labels = {
+    application = "open-webui"
+    environment = var.environment
+    managed-by  = "terraform"
+  }
+}
+
+# Generate a random password for the database
+resource "random_password" "db_password" {
+  length  = 32
+  special = true
+
+  # Ensure password meets PostgreSQL requirements
+  min_lower   = 1
+  min_upper   = 1
+  min_numeric = 1
+  min_special = 1
+}
+
+# Cloud SQL PostgreSQL instance
+resource "google_sql_database_instance" "postgresql" {
+  name                = "${var.environment}-open-webui-postgresql"
+  database_version    = "POSTGRES_15"
+  project             = var.project_id
+  region              = var.region
+  deletion_protection = var.environment == "prod" ? true : false
 
   settings {
-    tier                        = var.database_tier
-    availability_type          = var.high_availability ? "REGIONAL" : "ZONAL"
-    disk_type                  = "PD_SSD"
-    disk_size                  = var.disk_size_gb
-    disk_autoresize            = true
-    disk_autoresize_limit      = var.max_disk_size_gb
-    
+    tier                  = var.database_tier
+    availability_type     = var.environment == "prod" ? "REGIONAL" : "ZONAL"
+    disk_type             = "PD_SSD"
+    disk_size             = var.database_disk_size
+    disk_autoresize       = true
+    disk_autoresize_limit = var.database_disk_size * 2
+
+    # Enable automatic backups
     backup_configuration {
-      enabled                        = var.enable_backup
+      enabled                        = true
       start_time                     = "03:00"
-      location                       = var.backup_location
-      point_in_time_recovery_enabled = var.enable_point_in_time_recovery
+      location                       = var.region
+      point_in_time_recovery_enabled = var.environment == "prod" ? true : false
+      transaction_log_retention_days = var.environment == "prod" ? 7 : 3
       backup_retention_settings {
-        retained_backups = var.backup_retention_count
+        retained_backups = var.environment == "prod" ? 30 : 7
         retention_unit   = "COUNT"
       }
-      transaction_log_retention_days = var.transaction_log_retention_days
     }
 
-    maintenance_window {
-      day          = 7  # Sunday
-      hour         = 4  # 4 AM
-      update_track = "stable"
+    # IP configuration - Private IP only
+    ip_configuration {
+      ipv4_enabled                                  = false
+      private_network                               = var.vpc_network_id
+      enable_private_path_for_google_cloud_services = true
+      require_ssl                                   = true
+
+      # No authorized networks for private IP
+      dynamic "authorized_networks" {
+        for_each = []
+        content {
+          name  = authorized_networks.value.name
+          value = authorized_networks.value.value
+        }
+      }
     }
 
+    # Database flags for optimization
     database_flags {
       name  = "log_statement"
       value = "all"
@@ -47,46 +85,153 @@ resource "google_sql_database_instance" "postgres" {
 
     database_flags {
       name  = "log_min_duration_statement"
-      value = "1000"  # Log queries taking more than 1s
+      value = "1000"
     }
 
-    ip_configuration {
-      ipv4_enabled                                  = false
-      private_network                               = var.network_id
-      enable_private_path_for_google_cloud_services = true
+    database_flags {
+      name  = "shared_preload_libraries"
+      value = "pg_stat_statements"
     }
 
+    database_flags {
+      name  = "max_connections"
+      value = var.max_connections
+    }
+
+    # Maintenance window
+    maintenance_window {
+      day          = 7 # Sunday
+      hour         = 4 # 4 AM
+      update_track = "stable"
+    }
+
+    # Insights configuration
     insights_config {
       query_insights_enabled  = true
       record_application_tags = true
       record_client_address   = true
     }
+
+    # User labels
+    user_labels = local.common_labels
   }
 
-  deletion_protection = var.deletion_protection
-
-  depends_on = [var.private_service_connection_id]
+  depends_on = [
+    var.services_ready,
+    var.private_service_connection_id
+  ]
 }
 
-# Database
-resource "google_sql_database" "openwebui" {
-  name     = "openwebui"
-  instance = google_sql_database_instance.postgres.name
+# Create database user
+resource "google_sql_user" "app_user" {
+  name     = var.database_username
+  instance = google_sql_database_instance.postgresql.name
+  password = random_password.db_password.result
   project  = var.project_id
 }
 
-# Database User
-resource "google_sql_user" "openwebui" {
-  name     = "openwebui"
-  instance = google_sql_database_instance.postgres.name
-  password = var.database_password
+# Create application database
+resource "google_sql_database" "app_database" {
+  name     = var.database_name
+  instance = google_sql_database_instance.postgresql.name
   project  = var.project_id
+
+  # UTF-8 encoding for internationalization
+  charset   = "UTF8"
+  collation = "en_US.UTF8"
 }
 
-# Additional database for vector storage (if using pgvector)
-resource "google_sql_database" "vector_db" {
-  count    = var.enable_vector_db ? 1 : 0
-  name     = "vector_db"
-  instance = google_sql_database_instance.postgres.name
+# SSL Certificate for the database
+resource "google_sql_ssl_cert" "client_cert" {
+  common_name = "${var.environment}-open-webui-client-cert"
+  instance    = google_sql_database_instance.postgresql.name
+  project     = var.project_id
+}
+
+# Store database password in Secret Manager
+resource "google_secret_manager_secret_version" "db_password" {
+  secret      = var.database_password_secret_id
+  secret_data = random_password.db_password.result
+
+  depends_on = [google_sql_database_instance.postgresql]
+}
+
+# Create database URL and store in Secret Manager
+locals {
+  database_url = "postgresql://${google_sql_user.app_user.name}:${random_password.db_password.result}@${google_sql_database_instance.postgresql.private_ip_address}:5432/${google_sql_database.app_database.name}?sslmode=require"
+}
+
+resource "google_secret_manager_secret_version" "database_url" {
+  secret      = var.database_url_secret_id
+  secret_data = local.database_url
+
+  depends_on = [
+    google_sql_database_instance.postgresql,
+    google_sql_database.app_database,
+    google_sql_user.app_user
+  ]
+}
+
+# Create read replica for production
+resource "google_sql_database_instance" "read_replica" {
+  count = var.environment == "prod" && var.enable_read_replica ? 1 : 0
+
+  name                 = "${var.environment}-open-webui-postgresql-replica"
+  database_version     = "POSTGRES_15"
+  project              = var.project_id
+  region               = var.replica_region
+  master_instance_name = google_sql_database_instance.postgresql.name
+
+  replica_configuration {
+    failover_target = false
+  }
+
+  settings {
+    tier              = var.replica_tier
+    availability_type = "ZONAL"
+    disk_type         = "PD_SSD"
+    disk_size         = var.database_disk_size
+    disk_autoresize   = true
+
+    # IP configuration - same as master
+    ip_configuration {
+      ipv4_enabled                                  = false
+      private_network                               = var.vpc_network_id
+      enable_private_path_for_google_cloud_services = true
+      require_ssl                                   = true
+    }
+
+    # User labels
+    user_labels = merge(local.common_labels, {
+      replica = "true"
+    })
+  }
+
+  depends_on = [
+    google_sql_database_instance.postgresql,
+    var.private_service_connection_id
+  ]
+}
+
+# Create additional databases for different purposes
+resource "google_sql_database" "sessions_database" {
+  count = var.create_sessions_database ? 1 : 0
+
+  name     = "${var.database_name}_sessions"
+  instance = google_sql_database_instance.postgresql.name
   project  = var.project_id
+
+  charset   = "UTF8"
+  collation = "en_US.UTF8"
+}
+
+resource "google_sql_database" "analytics_database" {
+  count = var.create_analytics_database && var.environment == "prod" ? 1 : 0
+
+  name     = "${var.database_name}_analytics"
+  instance = google_sql_database_instance.postgresql.name
+  project  = var.project_id
+
+  charset   = "UTF8"
+  collation = "en_US.UTF8"
 } 

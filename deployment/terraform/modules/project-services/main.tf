@@ -2,42 +2,84 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "~> 5.0"
+      version = ">= 4.0.0"
     }
   }
 }
 
 locals {
-  required_services = [
-    "run.googleapis.com",                    # Cloud Run
-    "sqladmin.googleapis.com",              # Cloud SQL
-    "storage.googleapis.com",               # Cloud Storage
-    "redis.googleapis.com",                 # Memorystore Redis
-    "cloudbuild.googleapis.com",            # Cloud Build
-    "artifactregistry.googleapis.com",      # Artifact Registry
-    "vpcaccess.googleapis.com",             # VPC Access Connector
-    "aiplatform.googleapis.com",            # Vertex AI
-    "monitoring.googleapis.com",            # Cloud Monitoring
-    "logging.googleapis.com",               # Cloud Logging
-    "iam.googleapis.com",                   # Identity and Access Management
-    "compute.googleapis.com",               # Compute Engine (for networking)
-    "servicenetworking.googleapis.com",     # Service Networking
-    "secretmanager.googleapis.com",         # Secret Manager
+  apis = [
+    "serviceusage.googleapis.com",
+    "cloudresourcemanager.googleapis.com",
+    "compute.googleapis.com",
+    "vpcaccess.googleapis.com",
+    "storage.googleapis.com",
+    "secretmanager.googleapis.com",
+    "sqladmin.googleapis.com",
+    "redis.googleapis.com",
+    "run.googleapis.com",
+    "aiplatform.googleapis.com",
+    "cloudbuild.googleapis.com",
+    "artifactregistry.googleapis.com",
+    "monitoring.googleapis.com",
+    "logging.googleapis.com",
+    "iamcredentials.googleapis.com",
+    "cloudtrace.googleapis.com",
+    "container.googleapis.com"
   ]
 }
 
-resource "google_project_service" "required_apis" {
-  for_each = toset(local.required_services)
-  
-  project                    = var.project_id
-  service                   = each.value
-  disable_on_destroy        = false
+# Enable APIs in dependency order
+resource "google_project_service" "services" {
+  for_each = toset(local.apis)
+
+  project = var.project_id
+  service = each.value
+
   disable_dependent_services = false
+  disable_on_destroy         = false
+
+  timeouts {
+    create = "10m"
+    update = "10m"
+  }
 }
 
-# Wait for APIs to be enabled before other resources
-resource "time_sleep" "api_propagation" {
-  depends_on = [google_project_service.required_apis]
-  
-  create_duration = "60s"
+# Add explicit dependencies for critical services
+resource "google_project_service" "serviceusage" {
+  project = var.project_id
+  service = "serviceusage.googleapis.com"
+
+  disable_dependent_services = false
+  disable_on_destroy         = false
+}
+
+resource "google_project_service" "cloudresourcemanager" {
+  project = var.project_id
+  service = "cloudresourcemanager.googleapis.com"
+
+  disable_dependent_services = false
+  disable_on_destroy         = false
+
+  depends_on = [google_project_service.serviceusage]
+}
+
+resource "google_project_service" "compute" {
+  project = var.project_id
+  service = "compute.googleapis.com"
+
+  disable_dependent_services = false
+  disable_on_destroy         = false
+
+  depends_on = [google_project_service.cloudresourcemanager]
+}
+
+resource "google_project_service" "vpcaccess" {
+  project = var.project_id
+  service = "vpcaccess.googleapis.com"
+
+  disable_dependent_services = false
+  disable_on_destroy         = false
+
+  depends_on = [google_project_service.compute]
 } 

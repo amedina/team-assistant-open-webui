@@ -1,133 +1,266 @@
-# Cloud Build configuration for Open WebUI
-# This file demonstrates how Cloud Build creates Docker images and deploys to Cloud Run
+# =============================================================================
+# Cloud Build Configuration for Open WebUI
+# =============================================================================
+# This configuration supports both staging and production deployments
+# - Staging: Auto-deploys on main branch push
+# - Production: Manual deployment via version tags
+# - Timeout: 10 minutes (600 seconds) as specified
+# - Machine Type: e2-standard-2 for faster builds
 
+substitutions:
+  # Default substitutions (can be overridden)
+  _ENVIRONMENT: 'staging'
+  _REGION: 'us-central1'
+  _ARTIFACT_REGISTRY_LOCATION: 'us-central1'
+  _CLOUD_RUN_SERVICE_NAME: '${_ENVIRONMENT}-open-webui'
+  _CLOUD_RUN_MEMORY: '4096Mi'
+  _CLOUD_RUN_CPU: '2000m'
+  _CLOUD_RUN_MIN_INSTANCES: '1'
+  _CLOUD_RUN_MAX_INSTANCES: '1'
+  _CLOUD_RUN_TIMEOUT: '240'
+  _VPC_CONNECTOR: '${_ENVIRONMENT}-open-webui-vpc-connector'
+
+# Build timeout: 10 minutes as specified
+timeout: 600s
+
+# Use e2-standard-2 for faster builds
+options:
+  machineType: 'E2_STANDARD_2'
+  requestedVerifyOption: 'VERIFIED'
+  sourceProvenanceHash: ['SHA256']
+
+# Build steps
 steps:
-  # Step 1: Build the Docker image
-  - name: 'gcr.io/cloud-builders/docker'
-    id: 'build-image'
-    args:
-      - 'build'
-      - '-t'
-      - '${_ARTIFACT_REGISTRY_URL}/open-webui:${COMMIT_SHA}'
-      - '-t' 
-      - '${_ARTIFACT_REGISTRY_URL}/open-webui:latest'
-      - '-f'
-      - 'Dockerfile'
-      - '.'
-    env:
-      - 'DOCKER_BUILDKIT=1'
-
-  # Step 2: Push the commit-specific image
-  - name: 'gcr.io/cloud-builders/docker'
-    id: 'push-commit-image'
-    args:
-      - 'push'
-      - '${_ARTIFACT_REGISTRY_URL}/open-webui:${COMMIT_SHA}'
-    waitFor: ['build-image']
-
-  # Step 3: Push the latest tag
-  - name: 'gcr.io/cloud-builders/docker' 
-    id: 'push-latest-image'
-    args:
-      - 'push'
-      - '${_ARTIFACT_REGISTRY_URL}/open-webui:latest'
-    waitFor: ['build-image']
-
-  # Step 4: Deploy to Cloud Run (conditional based on environment)
+  # Step 1: Validate environment
   - name: 'gcr.io/cloud-builders/gcloud'
-    id: 'deploy-cloud-run'
-    args:
-      - 'run'
-      - 'deploy'
-      - '${_ENVIRONMENT}-open-webui'
-      - '--image'
-      - '${_ARTIFACT_REGISTRY_URL}/open-webui:${COMMIT_SHA}'
-      - '--region'
-      - '${_REGION}'
-      - '--platform'
-      - 'managed'
-      - '--allow-unauthenticated'
-      - '--port'
-      - '8080'
-      - '--memory'
-      - '${_MEMORY_LIMIT}'
-      - '--cpu'
-      - '${_CPU_LIMIT}'
-      - '--min-instances'
-      - '${_MIN_INSTANCES}'
-      - '--max-instances'
-      - '${_MAX_INSTANCES}'
-      - '--service-account'
-      - '${_SERVICE_ACCOUNT_EMAIL}'
-      - '--vpc-connector'
-      - '${_VPC_CONNECTOR}'
-      - '--vpc-egress'
-      - 'private-ranges-only'
-      - '--quiet'
-    waitFor: ['push-commit-image']
-
-  # Step 5: Run database migrations (if needed)
-  - name: 'gcr.io/cloud-builders/gcloud'
-    id: 'run-migrations'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        # Run Alembic migrations using Cloud Run Jobs
-        gcloud run jobs create migrate-${BUILD_ID} \
-          --image=${_ARTIFACT_REGISTRY_URL}/open-webui:${COMMIT_SHA} \
-          --region=${_REGION} \
-          --service-account=${_SERVICE_ACCOUNT_EMAIL} \
-          --vpc-connector=${_VPC_CONNECTOR} \
-          --vpc-egress=private-ranges-only \
-          --set-env-vars="DATABASE_URL=${_DATABASE_URL}" \
-          --set-env-vars="REDIS_URL=${_REDIS_URL}" \
-          --command="python" \
-          --args="-m,alembic,upgrade,head" \
-          --quiet
+        echo "=== Open WebUI Build Started ==="
+        echo "Environment: ${_ENVIRONMENT}"
+        echo "Region: ${_REGION}"
+        echo "Project: $PROJECT_ID"
+        echo "Build ID: $BUILD_ID"
+        echo "Commit SHA: $COMMIT_SHA"
+        echo "Branch: $BRANCH_NAME"
+        echo "Tag: $TAG_NAME"
+        echo "=================================="
         
-        # Execute the migration job
-        gcloud run jobs execute migrate-${BUILD_ID} \
-          --region=${_REGION} \
-          --wait \
-          --quiet
+        # Validate environment
+        if [[ "${_ENVIRONMENT}" != "staging" && "${_ENVIRONMENT}" != "prod" ]]; then
+          echo "ERROR: Invalid environment. Must be 'staging' or 'prod'"
+          exit 1
+        fi
         
-        # Clean up the job
-        gcloud run jobs delete migrate-${BUILD_ID} \
+        # Check if required services are enabled
+        gcloud services list --enabled --filter="name:run.googleapis.com" --format="value(name)" | grep -q "run.googleapis.com" || {
+          echo "ERROR: Cloud Run API not enabled"
+          exit 1
+        }
+        
+        echo "Environment validation passed"
+
+  # Step 2: Build Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - '${_ARTIFACT_REGISTRY_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_ENVIRONMENT}-open-webui-images/open-webui:${_ENVIRONMENT}-$SHORT_SHA'
+      - '-t'
+      - '${_ARTIFACT_REGISTRY_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_ENVIRONMENT}-open-webui-images/open-webui:${_ENVIRONMENT}-latest'
+      - '--build-arg'
+      - 'ENVIRONMENT=${_ENVIRONMENT}'
+      - '--build-arg'
+      - 'BUILD_VERSION=${_ENVIRONMENT}-$SHORT_SHA'
+      - '.'
+    id: 'build-image'
+
+  # Step 3: Push image with commit SHA
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '${_ARTIFACT_REGISTRY_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_ENVIRONMENT}-open-webui-images/open-webui:${_ENVIRONMENT}-$SHORT_SHA'
+    id: 'push-image-sha'
+    waitFor: ['build-image']
+
+  # Step 4: Push image with latest tag
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '${_ARTIFACT_REGISTRY_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_ENVIRONMENT}-open-webui-images/open-webui:${_ENVIRONMENT}-latest'
+    id: 'push-image-latest'
+    waitFor: ['build-image']
+
+  # Step 5: Deploy to Cloud Run
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - '${_CLOUD_RUN_SERVICE_NAME}'
+      - '--image'
+      - '${_ARTIFACT_REGISTRY_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_ENVIRONMENT}-open-webui-images/open-webui:${_ENVIRONMENT}-$SHORT_SHA'
+      - '--region'
+      - '${_REGION}'
+      - '--platform'
+      - 'managed'
+      - '--memory'
+      - '${_CLOUD_RUN_MEMORY}'
+      - '--cpu'
+      - '${_CLOUD_RUN_CPU}'
+      - '--min-instances'
+      - '${_CLOUD_RUN_MIN_INSTANCES}'
+      - '--max-instances'
+      - '${_CLOUD_RUN_MAX_INSTANCES}'
+      - '--timeout'
+      - '${_CLOUD_RUN_TIMEOUT}'
+      - '--vpc-connector'
+      - '${_VPC_CONNECTOR}'
+      - '--vpc-egress'
+      - 'all-traffic'
+      - '--allow-unauthenticated'
+      - '--set-env-vars'
+      - 'ENVIRONMENT=${_ENVIRONMENT},BUILD_VERSION=${_ENVIRONMENT}-$SHORT_SHA'
+    id: 'deploy-cloud-run'
+    waitFor: ['push-image-sha', 'push-image-latest']
+
+  # Step 6: Verify deployment
+  - name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "=== Verifying Deployment ==="
+        
+        # Get service URL
+        SERVICE_URL=$(gcloud run services describe ${_CLOUD_RUN_SERVICE_NAME} \
           --region=${_REGION} \
-          --quiet
+          --format="value(status.url)")
+        
+        echo "Service URL: $SERVICE_URL"
+        
+        # Wait for service to be ready
+        echo "Waiting for service to be ready..."
+        for i in {1..30}; do
+          if gcloud run services describe ${_CLOUD_RUN_SERVICE_NAME} \
+            --region=${_REGION} \
+            --format="value(status.conditions[0].status)" | grep -q "True"; then
+            echo "Service is ready!"
+            break
+          fi
+          echo "Waiting... (attempt $i/30)"
+          sleep 10
+        done
+        
+        # Health check
+        echo "Performing health check..."
+        if curl -f -s --max-time 60 "$SERVICE_URL/health" > /dev/null; then
+          echo "✅ Health check passed"
+        else
+          echo "❌ Health check failed"
+          exit 1
+        fi
+        
+        echo "=== Deployment Successful ==="
+        echo "Service URL: $SERVICE_URL"
+        echo "Environment: ${_ENVIRONMENT}"
+        echo "Image: ${_ARTIFACT_REGISTRY_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_ENVIRONMENT}-open-webui-images/open-webui:${_ENVIRONMENT}-$SHORT_SHA"
+    id: 'verify-deployment'
     waitFor: ['deploy-cloud-run']
 
-# Substitutions for environment-specific values
-substitutions:
-  # These are filled by Terraform during trigger creation
-  _ARTIFACT_REGISTRY_URL: 'us-central1-docker.pkg.dev/PROJECT_ID/REPO_NAME'
-  _ENVIRONMENT: 'dev'
-  _REGION: 'us-central1'
-  _MEMORY_LIMIT: '2Gi'
-  _CPU_LIMIT: '1'
-  _MIN_INSTANCES: '0'
-  _MAX_INSTANCES: '10'
-  _SERVICE_ACCOUNT_EMAIL: 'cloud-run-sa@PROJECT_ID.iam.gserviceaccount.com'
-  _VPC_CONNECTOR: 'projects/PROJECT_ID/locations/REGION/connectors/CONNECTOR_NAME'
-  _DATABASE_URL: 'postgresql://user:pass@host:5432/db'
-  _REDIS_URL: 'redis://host:6379'
+  # Step 7: Clean up old images (optional)
+  - name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "=== Cleaning up old images ==="
+        
+        # Keep only the last 10 images
+        OLD_IMAGES=$(gcloud artifacts docker images list \
+          ${_ARTIFACT_REGISTRY_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_ENVIRONMENT}-open-webui-images/open-webui \
+          --sort-by=~CREATE_TIME \
+          --format="value(IMAGE)" \
+          --limit=999 | tail -n +11)
+        
+        if [[ -n "$OLD_IMAGES" ]]; then
+          echo "Deleting old images..."
+          echo "$OLD_IMAGES" | while read -r image; do
+            echo "Deleting: $image"
+            gcloud artifacts docker images delete "$image" --quiet --async
+          done
+        else
+          echo "No old images to clean up"
+        fi
+        
+        echo "Cleanup completed"
+    id: 'cleanup-images'
+    waitFor: ['verify-deployment']
 
-# Service account for secure operations
-serviceAccount: 'projects/PROJECT_ID/serviceAccounts/cloud-build-sa@PROJECT_ID.iam.gserviceaccount.com'
+# Images to be pushed to registry
+images:
+  - '${_ARTIFACT_REGISTRY_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_ENVIRONMENT}-open-webui-images/open-webui:${_ENVIRONMENT}-$SHORT_SHA'
+  - '${_ARTIFACT_REGISTRY_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_ENVIRONMENT}-open-webui-images/open-webui:${_ENVIRONMENT}-latest'
 
-# Build timeout (20 minutes)
-timeout: '1200s'
+# Artifacts to be stored
+artifacts:
+  objects:
+    location: 'gs://$PROJECT_ID-cloudbuild-artifacts'
+    paths:
+      - 'build-logs.txt'
 
-# Build options
-options:
-  # Use high-CPU machine for faster builds
-  machineType: 'E2_HIGHCPU_8'
-  
-  # Use Cloud Logging for better integration
-  logging: 'CLOUD_LOGGING_ONLY'
-
-# Image tags for organization
-tags:
-  - 'open-webui'
-  - '${_ENVIRONMENT}' 
+# =============================================================================
+# Usage Instructions
+# =============================================================================
+#
+# STAGING DEPLOYMENT:
+# This configuration is triggered automatically when code is pushed to the main branch.
+# The Cloud Build trigger should be configured with:
+# - Event: Push to branch
+# - Branch: ^main$
+# - Included files: **
+# - Substitutions: _ENVIRONMENT=staging
+#
+# PRODUCTION DEPLOYMENT:
+# This configuration is triggered manually when a version tag is pushed.
+# The Cloud Build trigger should be configured with:
+# - Event: Push to tag
+# - Tag: ^v[0-9]+\.[0-9]+\.[0-9]+$
+# - Included files: **
+# - Substitutions: _ENVIRONMENT=prod,_CLOUD_RUN_MAX_INSTANCES=10
+#
+# MANUAL EXECUTION:
+# You can also run this build manually using:
+# gcloud builds submit --config=cloudbuild.yaml --substitutions=_ENVIRONMENT=staging
+#
+# ENVIRONMENT VARIABLES:
+# The following environment variables are available in the build:
+# - PROJECT_ID: GCP project ID
+# - BUILD_ID: Unique build ID
+# - COMMIT_SHA: Git commit SHA
+# - SHORT_SHA: Short git commit SHA
+# - BRANCH_NAME: Git branch name
+# - TAG_NAME: Git tag name (for tag-based triggers)
+# - _ENVIRONMENT: Target environment (staging/prod)
+# - _REGION: GCP region
+#
+# SECURITY NOTES:
+# - Service account used for Cloud Build has minimal required permissions
+# - Secrets are injected at runtime via Secret Manager
+# - Images are stored in private Artifact Registry
+# - Verification steps ensure successful deployment
+#
+# MONITORING:
+# - Build logs are stored in Cloud Logging
+# - Build artifacts are stored in Cloud Storage
+# - Cloud Run deployment metrics are available in Cloud Monitoring
+# - Health checks validate successful deployment
+#
+# TROUBLESHOOTING:
+# - Check Cloud Build logs for detailed error messages
+# - Verify all required APIs are enabled
+# - Ensure service accounts have proper permissions
+# - Check VPC Connector configuration
+# - Verify Secret Manager secrets are properly configured
+#
+# ============================================================================= 

@@ -1,256 +1,229 @@
 terraform {
-  required_version = ">= 1.0"
+  required_version = ">= 1.5"
+
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "~> 5.0"
-    }
-    google-beta = {
-      source  = "hashicorp/google-beta"
-      version = "~> 5.0"
+      version = ">= 4.0.0"
     }
     random = {
       source  = "hashicorp/random"
-      version = "~> 3.1"
-    }
-    time = {
-      source  = "hashicorp/time"
-      version = "~> 0.9"
+      version = "~> 3.0"
     }
   }
 }
 
+# Configure the Google Cloud Provider
 provider "google" {
   project = var.project_id
   region  = var.region
 }
 
-provider "google-beta" {
-  project = var.project_id
-  region  = var.region
-}
-
-# Local values for environment-specific configuration
+# Local variables
 locals {
   environment = "staging"
 
-  common_labels = merge(var.labels, {
-    environment = local.environment
-    terraform   = "true"
-  })
-}
-
-# Generate random secrets
-resource "random_password" "webui_secret_key" {
-  length  = 64
-  special = true
-}
-
-resource "random_password" "db_password" {
-  length  = 32
-  special = true
+  # Environment-specific configurations
+  staging_config = {
+    min_instances                = 1
+    max_instances                = 1
+    database_tier                = "db-f1-micro"
+    redis_memory_size_gb         = 1
+    vpc_connector_max_throughput = 300
+  }
 }
 
 # Enable required APIs
 module "project_services" {
-  source     = "../../modules/project-services"
-  project_id = var.project_id
-}
+  source = "../../modules/project-services"
 
-# Networking
-module "networking" {
-  source      = "../../modules/networking"
   project_id  = var.project_id
-  region      = var.region
   environment = local.environment
-
-  vpc_connector_cidr          = var.vpc_connector_cidr
-  database_subnet_cidr        = var.database_subnet_cidr
-  vpc_connector_min_instances = var.vpc_connector_min_instances
-  vpc_connector_max_instances = var.vpc_connector_max_instances
-  enable_vpc_connector        = true # Temporarily disabled to avoid quota issues
-
-  depends_on = [module.project_services]
+  region      = var.region
 }
 
-# IAM and Service Accounts
+# Create IAM resources
 module "iam" {
-  source              = "../../modules/iam"
+  source = "../../modules/iam"
+
   project_id          = var.project_id
   environment         = local.environment
-  storage_bucket_name = var.storage_bucket_name
+  region              = var.region
+  storage_bucket_name = module.storage.data_bucket_name
+  services_ready      = module.project_services.services_ready
 
   depends_on = [module.project_services]
 }
 
-# Cloud Storage
+# Create networking resources
+module "networking" {
+  source = "../../modules/networking"
+
+  project_id                   = var.project_id
+  environment                  = local.environment
+  region                       = var.region
+  services_ready               = module.project_services.services_ready
+  vpc_connector_max_throughput = local.staging_config.vpc_connector_max_throughput
+
+  depends_on = [module.project_services]
+}
+
+# Create storage resources
 module "storage" {
-  source                = "../../modules/storage"
-  project_id            = var.project_id
-  region                = var.region
-  environment           = local.environment
-  bucket_name           = var.storage_bucket_name
-  service_account_email = module.iam.cloud_run_service_account_email
-  labels                = local.common_labels
+  source = "../../modules/storage"
 
-  # Staging-specific settings
-  force_destroy     = true # Allow deletion in staging
-  enable_versioning = true # Enable versioning
+  project_id                        = var.project_id
+  environment                       = local.environment
+  region                            = var.region
+  services_ready                    = module.project_services.services_ready
+  cloud_run_service_account_email   = module.iam.cloud_run_service_account_email
+  cloud_build_service_account_email = module.iam.cloud_build_service_account_email
 
-  depends_on = [module.project_services]
+  depends_on = [module.project_services, module.iam]
 }
 
-# Cloud SQL PostgreSQL
+# Create secret manager resources
+module "secret_manager" {
+  source = "../../modules/secret-manager"
+
+  project_id                        = var.project_id
+  environment                       = local.environment
+  region                            = var.region
+  backup_region                     = var.backup_region
+  services_ready                    = module.project_services.services_ready
+  cloud_run_service_account_email   = module.iam.cloud_run_service_account_email
+  cloud_build_service_account_email = module.iam.cloud_build_service_account_email
+  developer_emails                  = var.developer_emails
+
+  depends_on = [module.project_services, module.iam]
+}
+
+# Create database resources
 module "database" {
-  source                        = "../../modules/database"
+  source = "../../modules/database"
+
   project_id                    = var.project_id
-  region                        = var.region
   environment                   = local.environment
-  database_tier                 = var.database_tier
-  disk_size_gb                  = var.database_disk_size
-  database_password             = random_password.db_password.result
-  network_id                    = module.networking.vpc_network_id
+  region                        = var.region
+  services_ready                = module.project_services.services_ready
+  vpc_network_id                = module.networking.vpc_network_id
   private_service_connection_id = module.networking.private_service_connection_id
+  database_tier                 = local.staging_config.database_tier
+  database_password_secret_id   = module.secret_manager.database_password_id
+  database_url_secret_id        = module.secret_manager.database_url_id
 
-  # Staging-specific settings (production-like but more cost-effective)
-  high_availability             = false # Disable HA for staging
-  deletion_protection           = false # Allow deletion in staging
-  enable_point_in_time_recovery = true  # Enable PITR for testing
-
-  depends_on = [module.networking]
+  depends_on = [module.project_services, module.networking, module.secret_manager]
 }
 
-# Memorystore Redis
+# Create Redis resources
 module "redis" {
-  source      = "../../modules/redis"
-  project_id  = var.project_id
-  region      = var.region
-  environment = local.environment
-  network_id  = module.networking.vpc_network_id
+  source = "../../modules/redis"
 
-  # Staging-specific settings
-  memory_size_gb = var.redis_memory_size_gb
-  tier           = var.redis_tier
+  project_id                    = var.project_id
+  environment                   = local.environment
+  region                        = var.region
+  services_ready                = module.project_services.services_ready
+  vpc_network_id                = module.networking.vpc_network_id
+  private_service_connection_id = module.networking.private_service_connection_id
+  redis_memory_size_gb          = local.staging_config.redis_memory_size_gb
+  redis_url_secret_id           = module.secret_manager.redis_url_id
 
-  depends_on = [module.networking]
+  depends_on = [module.project_services, module.networking, module.secret_manager]
 }
 
-# Artifact Registry
+# Create Artifact Registry resources
 module "artifact_registry" {
-  source        = "../../modules/artifact-registry"
-  project_id    = var.project_id
-  region        = var.region
-  environment   = local.environment
-  repository_id = var.artifact_repository_name
-  labels        = local.common_labels
+  source = "../../modules/artifact-registry"
 
-  depends_on = [module.project_services]
+  project_id                        = var.project_id
+  environment                       = local.environment
+  region                            = var.region
+  services_ready                    = module.project_services.services_ready
+  cloud_build_service_account_email = module.iam.cloud_build_service_account_email
+  cloud_run_service_account_email   = module.iam.cloud_run_service_account_email
+  developer_emails                  = var.developer_emails
+
+  depends_on = [module.project_services, module.iam]
 }
 
-# Cloud Build
-module "cloud_build" {
-  source                 = "../../modules/cloud-build"
-  project_id             = var.project_id
-  region                 = var.region
-  environment            = local.environment
-  repository_url         = var.repository_url
-  github_owner           = var.github_owner
-  github_repo            = var.github_repo
-  trigger_branch         = "ta-main" # Use main branch
-  artifact_registry_url  = module.artifact_registry.repository_url
-  service_account_email  = module.iam.cloud_build_service_account_email
-  cloud_run_service_name = var.cloud_run_service_name
-  auto_deploy            = false # Disable auto-deployment for initial setup
-  enable_release_trigger = false # Disable release trigger for staging
+# Configure OAuth (external resource reference)
+module "oauth" {
+  source = "../../modules/oauth"
 
-  depends_on = [module.artifact_registry, module.iam]
+  project_id                    = var.project_id
+  environment                   = local.environment
+  oauth_client_id               = var.oauth_client_id
+  oauth_client_secret_value     = var.oauth_client_secret
+  oauth_client_secret_secret_id = module.secret_manager.oauth_client_secret_id
+  secrets_ready                 = module.secret_manager.secrets_ready
+  redirect_uris                 = var.oauth_redirect_uris
+  support_email                 = var.oauth_support_email
+  developer_email               = var.oauth_developer_email
+
+  depends_on = [module.secret_manager]
 }
 
-# Cloud Run Service
+# Configure Agent Engine (external resource reference)
+module "agent_engine" {
+  source = "../../modules/agent-engine"
+
+  project_id                      = var.project_id
+  environment                     = local.environment
+  agent_engine_project_id         = var.agent_engine_project_id
+  agent_engine_location           = var.agent_engine_location
+  agent_engine_resource_name      = var.agent_engine_resource_name
+  agent_engine_secret_id          = module.secret_manager.external_agent_engine_id_secret_id
+  agent_engine_custom_url         = var.agent_engine_custom_url
+  secrets_ready                   = module.secret_manager.secrets_ready
+  cloud_run_service_account_email = module.iam.cloud_run_service_account_email
+
+  depends_on = [module.secret_manager, module.iam]
+}
+
+# Deploy Cloud Run service
 module "cloud_run" {
-  source       = "../../modules/cloud-run"
-  project_id   = var.project_id
-  region       = var.region
-  environment  = local.environment
-  service_name = var.cloud_run_service_name
+  source = "../../modules/cloud-run"
 
-  # Container configuration
-  artifact_repository_name = module.artifact_registry.repository_name
-  artifact_repository_url  = module.artifact_registry.repository_url
-  container_image          = "${module.artifact_registry.repository_url}/open-webui:latest"
-  container_port           = 8080
+  project_id                      = var.project_id
+  environment                     = local.environment
+  region                          = var.region
+  container_image_url             = "${module.artifact_registry.repository_url}:${local.environment}-latest"
+  cloud_run_service_account_email = module.iam.cloud_run_service_account_email
+  vpc_connector_name              = module.networking.vpc_connector_name
 
-  # Storage configuration for Cloud Storage FUSE volumes
-  storage_bucket_name = module.storage.bucket_name
+  # Resource limits
+  cpu_limit     = var.cloud_run_cpu
+  memory_limit  = var.cloud_run_memory
+  min_instances = local.staging_config.min_instances
+  max_instances = local.staging_config.max_instances
 
-  # Environment variables specific to Open WebUI
-  environment_variables = {
-    ENV                           = "staging"
-    WEBUI_SECRET_KEY              = random_password.webui_secret_key.result
-    DATABASE_URL                  = "postgresql://openwebui:${urlencode(random_password.db_password.result)}@${module.database.private_ip_address}:5432/openwebui"
-    REDIS_URL                     = "redis://${module.redis.host}:6379"
-    STORAGE_PROVIDER              = "gcs"
-    GCS_BUCKET_NAME               = module.storage.bucket_name
-    GOOGLE_CLIENT_ID              = var.google_oauth_client_id
-    GOOGLE_CLIENT_SECRET          = var.google_oauth_client_secret
-    ENABLE_SIGNUP                 = "true" # Allow signup in staging for testing
-    ENABLE_LOGIN_FORM             = "true"
-    ENABLE_OAUTH_SIGNUP           = "true"
-    OAUTH_MERGE_ACCOUNTS_BY_EMAIL = "true"
-    WEBUI_NAME                    = "Open WebUI (Staging)"
-    WEBUI_AUTH                    = "true"
-    DATA_DIR                      = "/app/backend/data"
-    CACHE_DIR                     = "/app/backend/cache"
-    UPLOAD_DIR                    = "/app/backend/uploads"
-    VECTOR_DB                     = "chroma"
-    CHROMA_DATA_PATH              = "/app/backend/data/vector_db"
-    ENABLE_DIRECT_CONNECTIONS     = "true"
-    UVICORN_WORKERS               = var.uvicorn_workers
-    LOG_LEVEL                     = "DEBUG" # Debug logging for staging
-    GLOBAL_LOG_LEVEL              = "DEBUG"
-  }
+  # Secret references
+  webui_secret_key_secret_id    = module.secret_manager.webui_secret_key_id
+  database_url_secret_id        = module.secret_manager.database_url_id
+  redis_url_secret_id           = module.secret_manager.redis_url_id
+  oauth_client_secret_secret_id = module.secret_manager.oauth_client_secret_id
+  agent_engine_secret_id        = module.secret_manager.external_agent_engine_id_secret_id
 
-  # Resource configuration (staging sizing)
-  cpu_limit     = var.cloud_run_cpu_limit
-  memory_limit  = var.cloud_run_memory_limit
-  min_instances = var.cloud_run_min_instances
-  max_instances = var.cloud_run_max_instances
+  # Configuration
+  oauth_client_id     = var.oauth_client_id
+  storage_bucket_name = module.storage.data_bucket_name
 
-  # Network configuration (VPC connector conditionally enabled)
-  vpc_connector_name = module.networking.vpc_connector_name != null ? module.networking.vpc_connector_name : ""
-
-  # Service account
-  service_account_email = module.iam.cloud_run_service_account_email
-  labels                = local.common_labels
+  # Dependencies
+  services_ready          = module.project_services.services_ready
+  networking_ready        = module.networking.networking_ready
+  secrets_ready           = module.secret_manager.secrets_ready
+  storage_ready           = module.storage.storage_ready
+  database_ready          = module.database.database_ready
+  redis_ready             = module.redis.redis_ready
+  artifact_registry_ready = module.artifact_registry.artifact_registry_ready
 
   depends_on = [
+    module.project_services,
+    module.networking,
+    module.secret_manager,
+    module.storage,
     module.database,
     module.redis,
-    module.storage,
-    module.networking,
-    module.iam
+    module.artifact_registry
   ]
-}
-
-# Monitoring (enabled for staging to test alerts)
-module "monitoring" {
-  count       = var.enable_monitoring ? 1 : 0
-  source      = "../../modules/monitoring"
-  project_id  = var.project_id
-  environment = local.environment
-
-  # Monitoring targets
-  cloud_run_service_name = module.cloud_run.service_name
-  cloud_run_service_url = module.cloud_run.service_url
-  database_instance_id   = module.database.instance_id
-  redis_instance_id      = module.redis.instance_id
-
-  # Notification email
-  notification_email = var.notification_email
-
-  depends_on = [
-    module.cloud_run,
-    module.database,
-    module.redis
-  ]
-}
+} 

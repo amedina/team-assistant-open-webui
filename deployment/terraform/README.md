@@ -1,259 +1,327 @@
-# Open WebUI Terraform Infrastructure
+# Open WebUI Terraform Deployment Configuration
 
-This repository contains Terraform configurations for deploying Open WebUI across multiple environments (dev, staging, production) on Google Cloud Platform.
+This repository contains a comprehensive Terraform configuration for deploying Open WebUI on Google Cloud Platform (GCP) with production-ready security, scalability, and monitoring features.
 
-## Architecture Overview
+## 🏗️ Architecture Overview
 
-The infrastructure deploys:
-- **Google Cloud Run** - Serverless container platform
-- **Google Cloud Storage** - Object storage for persistent data  
-- **Google Vertex AI** - AI platform for language model capabilities
-- **Cloud SQL PostgreSQL** - Managed relational database
-- **Memorystore Redis** - In-memory data store for caching
-- **Google OAuth** - Authentication service
-- **Google Service Accounts** - Identity management
-- **Google Cloud Build** - CI/CD pipeline
-- **Artifact Registry** - Container registry
+The deployment creates a secure, scalable architecture with the following components:
 
-## Directory Structure
+- **Cloud Run V2** - Main application hosting (2 CPU, 4GB RAM)
+- **Cloud SQL PostgreSQL** - Primary database with private IP
+- **Redis Memorystore** - Session caching (BASIC tier)
+- **Cloud Storage** - File storage with lifecycle policies
+- **Secret Manager** - Secure credential management
+- **VPC Connector** - Private service connectivity (mandatory)
+- **Artifact Registry** - Container image storage
+- **Cloud Build** - CI/CD pipeline with 10-minute timeout
+- **Cloud Monitoring** - Comprehensive observability
+
+## 📋 Prerequisites
+
+Before deploying, ensure you have:
+
+1. **GCP Project** with billing enabled
+2. **Google Cloud SDK** installed and authenticated
+3. **Terraform 1.5+** installed
+4. **External Agent Engine** already deployed
+5. **OAuth Application** configured in Google Cloud Console
+6. **GitHub Repository** connected to Cloud Build
+
+## 🚀 Quick Start
+
+### 1. Clone and Navigate
+```bash
+git clone <repository-url>
+cd deployment/terraform/environments/staging
+```
+
+### 2. Configure Variables
+```bash
+cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars with your values
+```
+
+### 3. Initialize and Deploy
+```bash
+terraform init
+terraform plan
+terraform apply
+```
+
+## 📁 Directory Structure
 
 ```
-terraform/
-├── README.md                    # This file
-├── modules/                     # Shared Terraform modules
-│   ├── project-services/        # Enable GCP APIs
-│   ├── networking/             # VPC, subnets, connectors
-│   ├── iam/                    # Service accounts & permissions
-│   ├── storage/                # Cloud Storage buckets
-│   ├── database/               # Cloud SQL PostgreSQL
-│   ├── redis/                  # Memorystore Redis
-│   ├── artifact-registry/      # Container registry
-│   ├── cloud-build/            # CI/CD pipeline
-│   ├── cloud-run/              # Serverless container service
-│   └── monitoring/             # Monitoring & alerting
-├── environments/               # Environment-specific configurations
-│   ├── staging/                # Staging environment (auto-deploy on main)
+deployment/terraform/
+├── environments/
+│   ├── staging/          # Staging environment
 │   │   ├── main.tf
 │   │   ├── variables.tf
 │   │   ├── terraform.tfvars.example
-│   │   ├── outputs.tf
 │   │   └── backend.tf
-│   └── prod/                   # Production environment (manual deploy)
+│   └── prod/             # Production environment
 │       ├── main.tf
 │       ├── variables.tf
 │       ├── terraform.tfvars.example
-│       ├── outputs.tf
 │       └── backend.tf
-└── scripts/                    # Deployment scripts
-    ├── deploy.sh
-    ├── destroy.sh
-    └── setup-oauth.sh
+├── modules/
+│   ├── project-services/ # API enablement
+│   ├── iam/             # Service accounts & roles
+│   ├── networking/      # VPC, subnets, connector
+│   ├── storage/         # Cloud Storage buckets
+│   ├── secret-manager/  # Secret management
+│   ├── database/        # Cloud SQL PostgreSQL
+│   ├── redis/           # Memorystore Redis
+│   ├── artifact-registry/ # Container registry
+│   ├── oauth/           # OAuth configuration
+│   ├── agent-engine/    # External agent engine
+│   ├── cloud-build/     # CI/CD pipeline
+│   ├── cloud-run/       # Main application
+│   └── monitoring/      # Observability
+├── scripts/
+│   ├── deploy.sh        # Deployment script
+│   ├── setup-oauth.sh   # OAuth setup
+│   └── run_cloud_build.sh # Cloud Build trigger
+├── cloudbuild.yaml      # Cloud Build configuration
+└── README.md           # This file
 ```
 
-## Prerequisites
+## 🔧 Module Overview
 
-1. **Google Cloud SDK** installed and configured
-2. **Terraform** >= 1.0 installed
-3. **Docker** installed (for local builds)
-4. **jq** installed (for JSON processing)
+### Core Infrastructure Modules
 
-## Initial Setup
+| Module | Description | Key Features |
+|--------|-------------|--------------|
+| **project-services** | API enablement | Required APIs, dependency ordering |
+| **iam** | Identity & Access | Service accounts, least privilege |
+| **networking** | Network setup | VPC, subnets, VPC Connector |
+| **storage** | File storage | Cloud Storage, lifecycle policies |
+| **secret-manager** | Credential management | All secrets, multi-region replication |
 
-### 1. Clone Repository and Navigate to Terraform Directory
+### Application Modules
 
-```bash
-git clone <repository-url>
-cd terraform
-```
+| Module | Description | Key Features |
+|--------|-------------|--------------|
+| **database** | PostgreSQL database | Private IP, SSL, automated backups |
+| **redis** | Caching layer | BASIC tier, private connectivity |
+| **artifact-registry** | Container images | Private registry, cleanup policies |
+| **cloud-run** | Main application | V2 API, VPC Connector, auto-scaling |
+| **monitoring** | Observability | Dashboards, alerts, logging |
 
-### 2. Set Up Google Cloud Project
+### External Integration Modules
 
-```bash
-# Set your project ID
-export PROJECT_ID="your-project-id"
+| Module | Description | Key Features |
+|--------|-------------|--------------|
+| **oauth** | Google OAuth | External consent screen reference |
+| **agent-engine** | AI/ML integration | External Vertex AI endpoint |
+| **cloud-build** | CI/CD pipeline | 10-min timeout, staging/prod triggers |
 
-# Enable required APIs
-gcloud services enable \
-  run.googleapis.com \
-  sqladmin.googleapis.com \
-  storage.googleapis.com \
-  redis.googleapis.com \
-  cloudbuild.googleapis.com \
-  artifactregistry.googleapis.com \
-  vpcaccess.googleapis.com \
-  aiplatform.googleapis.com \
-  monitoring.googleapis.com \
-  logging.googleapis.com \
-  --project=$PROJECT_ID
-```
+## 🔐 Security Features
 
-### 3. Configure OAuth (Required)
+### Network Security
+- **Private IP only** for database and Redis
+- **VPC Connector** for private service access (mandatory)
+- **SSL enforcement** for all database connections
+- **Private container registry** with IAM controls
 
-Before deploying, you need to set up Google OAuth:
+### Secret Management
+- **All sensitive data** stored in Secret Manager
+- **Multi-region replication** for high availability
+- **Least privilege access** for service accounts
+- **No secrets in Terraform state** or code
 
-1. Go to [Google Cloud Console > APIs & Services > Credentials](https://console.cloud.google.com/apis/credentials)
-2. Create OAuth 2.0 Client ID
-3. Set authorized redirect URIs:
-   - `https://your-domain.com/oauth/google/callback`
-   - `https://your-cloud-run-url/oauth/google/callback`
-4. Note down the Client ID and Client Secret
+### IAM & Access Control
+- **Service accounts** with minimal required permissions
+- **Developer access** controls for staging environment
+- **Audit logging** for all resource access
+- **Role-based access** controls
 
-### 4. Set Up Remote State Backend (Recommended)
-
-```bash
-# Create a bucket for Terraform state
-gsutil mb gs://${PROJECT_ID}-terraform-state
-
-# Enable versioning
-gsutil versioning set on gs://${PROJECT_ID}-terraform-state
-```
-
-## Environment Deployment
-
-### Local Development
-
-For development, run Open WebUI locally on your machine. This provides:
-- Fast iteration and debugging
-- No cloud costs during development  
-- Direct access to logs and debugging tools
+## 🌍 Environment Configuration
 
 ### Staging Environment
-
-```bash
-cd environments/staging
-
-# Copy and edit variables
-cp terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars with your values
-
-# Initialize Terraform
-terraform init
-
-# Plan deployment
-terraform plan
-
-# Apply deployment
-terraform apply
-```
+- **Auto-deployment** on main branch push
+- **Minimal resources** for cost optimization
+- **1 instance** (no auto-scaling)
+- **db-f1-micro** database tier
+- **1GB Redis** BASIC tier
 
 ### Production Environment
+- **Manual deployment** via version tags
+- **High availability** configuration
+- **1-10 instances** with auto-scaling
+- **db-n1-standard-2** database tier
+- **4GB Redis** BASIC tier
 
+## 📊 Monitoring & Observability
+
+### Cloud Monitoring
+- **Service health** dashboards
+- **Resource utilization** metrics
+- **Application performance** monitoring
+- **Custom alerts** for critical issues
+
+### Cloud Logging
+- **Structured logging** from all services
+- **Centralized log aggregation**
+- **Log-based metrics** and alerts
+- **Audit trail** for all operations
+
+### Health Checks
+- **HTTP health endpoints** for all services
+- **Startup probes** with 240s timeout
+- **Liveness checks** with automatic restart
+- **Readiness probes** for traffic routing
+
+## 🔄 CI/CD Pipeline
+
+### Cloud Build Configuration
+- **10-minute timeout** as specified
+- **e2-standard-2** machine type for faster builds
+- **Staging**: Auto-deploy on main branch push
+- **Production**: Manual deploy on version tags
+
+### Build Steps
+1. **Environment validation** and API checks
+2. **Docker image build** with multi-stage
+3. **Image push** to Artifact Registry
+4. **Cloud Run deployment** with rollback
+5. **Health check verification**
+6. **Cleanup** of old images
+
+## 🛠️ Deployment Instructions
+
+### First-Time Setup
+
+1. **Configure OAuth** (manual step required):
+   ```bash
+   ./scripts/setup-oauth.sh
+   ```
+
+2. **Set up Terraform backend**:
+   ```bash
+   gsutil mb gs://your-project-terraform-state
+   ```
+
+3. **Initialize and apply**:
+   ```bash
+   cd environments/staging
+   terraform init
+   terraform apply
+   ```
+
+### Subsequent Deployments
+
+Use Cloud Build for automated deployments:
 ```bash
-cd environments/prod
+# Staging: Push to main branch
+git push origin main
 
-# Copy and edit variables (NEVER commit terraform.tfvars with secrets)
-cp terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars with your production values
-
-# Initialize Terraform
-terraform init
-
-# Plan deployment
-terraform plan
-
-# Apply deployment (consider using -auto-approve=false for production)
-terraform apply
+# Production: Create version tag
+git tag v1.0.0
+git push origin v1.0.0
 ```
 
-## Configuration
+## 🔧 Configuration Variables
 
 ### Required Variables
+- `project_id` - GCP project ID
+- `oauth_client_id` - Google OAuth client ID
+- `oauth_client_secret` - Google OAuth client secret
+- `agent_engine_project_id` - External Agent Engine project
+- `agent_engine_resource_name` - Agent Engine resource ID
 
-Each environment requires these variables in `terraform.tfvars`:
+### Optional Variables
+- `custom_domain` - Custom domain for the service
+- `developer_emails` - Developer access for staging
+- `enable_monitoring` - Enable monitoring (default: true)
+- `notification_channels` - Alert notification channels
 
-```hcl
-project_id                 = "your-gcp-project-id"
-region                    = "us-central1"
-storage_bucket_name       = "your-unique-bucket-name"
-repository_url           = "https://github.com/your-org/your-repo"
-support_email            = "support@your-domain.com"
-notification_email       = "alerts@your-domain.com"
-google_oauth_client_id   = "your-oauth-client-id"
-google_oauth_client_secret = "your-oauth-client-secret"
-```
-
-### Environment-Specific Sizing
-
-- **Local**: Development environment runs on your local machine
-- **Staging**: Production-like resources for testing (auto-deploy on main branch)
-- **Prod**: Full production resources with high availability (manual deploy via tags)
-
-## Deployment Scripts
-
-Use the provided scripts for easier deployment:
-
-```bash
-# Deploy to staging (auto-deploys on main branch push)
-./scripts/deploy.sh staging
-
-# Deploy to production (manual deployment)
-./scripts/deploy.sh prod
-
-# Destroy environment (be careful!)
-./scripts/deploy.sh staging --destroy
-./scripts/deploy.sh prod --destroy
-```
-
-## Post-Deployment
-
-After successful deployment:
-
-1. **Set up OAuth consent screen** in Google Cloud Console
-2. **Configure custom domain** (if using)
-3. **Set up monitoring alerts**
-4. **Configure backups** (automated via Terraform)
-5. **Test the application** using the provided URLs
-
-## Monitoring and Maintenance
-
-- **Logs**: Available in Google Cloud Logging
-- **Metrics**: Available in Google Cloud Monitoring
-- **Alerts**: Configured automatically for critical resources
-- **Backups**: Automated daily backups for database
-
-## Security Considerations
-
-- All secrets are managed via Terraform and stored securely
-- Database is only accessible via private network
-- Redis is only accessible via private network
-- Cloud Run service uses service account with minimal permissions
-- OAuth is properly configured for secure authentication
-
-## Troubleshooting
+## 🚨 Troubleshooting
 
 ### Common Issues
 
-1. **OAuth not working**: Check redirect URIs in Google Cloud Console
-2. **Database connection issues**: Verify VPC connector and private IP settings
-3. **Build failures**: Check Cloud Build logs and IAM permissions
-4. **Memory issues**: Adjust Cloud Run memory limits in variables
+1. **VPC Connector Errors**
+   - Verify VPC Connector is properly configured
+   - Check subnet ranges don't overlap
+   - Ensure proper firewall rules
 
-### Useful Commands
+2. **Secret Manager Issues**
+   - Verify all secrets are created
+   - Check IAM permissions for service accounts
+   - Ensure multi-region replication is enabled
 
-```bash
-# Check Cloud Run logs
-gcloud run services logs tail open-webui --region=us-central1
+3. **Cloud Build Failures**
+   - Check build logs in Cloud Console
+   - Verify GitHub connection is active
+   - Ensure proper substitution variables
 
-# Check database status
-gcloud sql instances describe openwebui-db
+4. **Database Connection Issues**
+   - Verify private IP configuration
+   - Check VPC peering for Cloud SQL
+   - Ensure SSL certificates are valid
 
-# Check Redis status
-gcloud redis instances describe openwebui-redis --region=us-central1
+### Support Resources
+- [Google Cloud Documentation](https://cloud.google.com/docs)
+- [Terraform GCP Provider](https://registry.terraform.io/providers/hashicorp/google/latest/docs)
+- [Cloud Run Documentation](https://cloud.google.com/run/docs)
+- [Project Issue Tracker](https://github.com/your-org/repo/issues)
 
-# Force new deployment
-gcloud run deploy open-webui --image=gcr.io/PROJECT_ID/open-webui:latest
-```
+## 📈 Cost Optimization
 
-## Contributing
+### Staging Environment
+- **Minimal instance sizing** (1 instance)
+- **f1-micro database** tier
+- **1GB Redis** BASIC tier
+- **Auto-scaling disabled**
 
-1. Make changes to modules or environment configurations
-2. Test changes locally first
-3. Push to main branch (auto-deploys to staging)
-4. Create version tag for production deployment (manual approval required)
+### Production Environment
+- **Right-sized instances** (1-10 scale)
+- **Optimized database** tier
+- **Lifecycle policies** for storage
+- **Monitoring-based scaling**
 
-## Support
+## 🛡️ Security Best Practices
 
-For issues and questions:
-- Check the troubleshooting section
-- Review Google Cloud logs
-- Open an issue in the repository 
+1. **Never commit secrets** to version control
+2. **Use Secret Manager** for all sensitive data
+3. **Enable audit logging** for all resources
+4. **Implement least privilege** access
+5. **Regularly rotate credentials**
+6. **Monitor for security events**
+
+## 🔄 Maintenance
+
+### Regular Tasks
+- **Update Terraform modules** quarterly
+- **Rotate secrets** according to policy
+- **Review access logs** monthly
+- **Update container images** for security patches
+
+### Backup Strategy
+- **Database backups** automated daily
+- **Terraform state** backed up to Cloud Storage
+- **Container images** retained for 30 days
+- **Configuration backups** versioned in Git
+
+## 📞 Support
+
+For deployment issues or questions:
+- Check this README first
+- Review module documentation
+- Check Cloud Console logs
+- Contact the infrastructure team
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Test changes in staging
+4. Submit a pull request
+5. Ensure all checks pass
+
+## 📄 License
+
+This configuration is provided under the [MIT License](LICENSE).
+
+---
+
+**Security Note**: This configuration handles sensitive data through Secret Manager and follows security best practices. Always review the security implications before deploying to production environments. 

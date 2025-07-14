@@ -2,178 +2,234 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "~> 5.0"
+      version = ">= 4.0.0"
     }
   }
 }
 
-# Cloud Run Service V2
-resource "google_cloud_run_v2_service" "openwebui" {
-  name     = "${var.environment}-${var.service_name}"
+locals {
+  common_labels = {
+    application = "open-webui"
+    environment = var.environment
+    managed-by  = "terraform"
+  }
+}
+
+# Cloud Run V2 Service
+resource "google_cloud_run_v2_service" "open_webui" {
+  name     = "${var.environment}-open-webui"
   location = var.region
   project  = var.project_id
 
+  labels = local.common_labels
+
   template {
-    labels = var.labels
+    labels = local.common_labels
 
-    execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
-    service_account       = var.service_account_email
-    timeout               = "${var.timeout_seconds}s"
-
+    # Scaling configuration
     scaling {
       min_instance_count = var.min_instances
       max_instance_count = var.max_instances
     }
 
-    # Cloud Storage FUSE volumes for persistent storage
-    volumes {
-      name = "app-data-storage"
-      gcs {
-        bucket = var.storage_bucket_name
-      }
+    # VPC Connector (mandatory)
+    vpc_access {
+      connector = var.vpc_connector_name
+      egress    = "ALL_TRAFFIC"
     }
 
-    volumes {
-      name = "uploads-storage"
-      gcs {
-        bucket = var.storage_bucket_name
-      }
-    }
-
-    volumes {
-      name = "cache-storage"
-      gcs {
-        bucket = var.storage_bucket_name
-      }
-    }
+    # Service account
+    service_account = var.cloud_run_service_account_email
 
     containers {
-      image = var.container_image
+      image = var.container_image_url
+      name  = "open-webui"
 
-      ports {
-        container_port = var.container_port
-        name           = "http1"
-      }
-
-      # Resource configuration using V2 structure
+      # Resource allocation (2 CPU, 4GB RAM)
       resources {
-        startup_cpu_boost = true
         limits = {
           cpu    = var.cpu_limit
           memory = var.memory_limit
         }
+        cpu_idle          = true
+        startup_cpu_boost = true
       }
 
-      # Volume mounts for persistent storage
-      volume_mounts {
-        name       = "app-data-storage"
-        mount_path = "/app/backend/data"
+      # Port configuration
+      ports {
+        name           = "http1"
+        container_port = 8080
       }
 
-      volume_mounts {
-        name       = "uploads-storage"
-        mount_path = "/app/backend/uploads"
-      }
-
-      volume_mounts {
-        name       = "cache-storage"
-        mount_path = "/app/backend/cache"
-      }
-
-      # Environment variables
-      dynamic "env" {
-        for_each = var.environment_variables
-        content {
-          name  = env.key
-          value = env.value
+      # Environment variables with secret injection
+      env {
+        name = "WEBUI_SECRET_KEY"
+        value_source {
+          secret_key_ref {
+            secret  = var.webui_secret_key_secret_id
+            version = "latest"
+          }
         }
       }
 
-      # Health check probes
-      liveness_probe {
-        http_get {
-          path = "/health"
-          port = var.container_port
+      env {
+        name = "DATABASE_URL"
+        value_source {
+          secret_key_ref {
+            secret  = var.database_url_secret_id
+            version = "latest"
+          }
         }
-        initial_delay_seconds = 1440
-        timeout_seconds       = 240
-        period_seconds        = 240
-        failure_threshold     = 1
       }
 
+      env {
+        name = "REDIS_URL"
+        value_source {
+          secret_key_ref {
+            secret  = var.redis_url_secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name  = "GOOGLE_CLIENT_ID"
+        value = var.oauth_client_id
+      }
+
+      env {
+        name = "GOOGLE_CLIENT_SECRET"
+        value_source {
+          secret_key_ref {
+            secret  = var.oauth_client_secret_secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name = "AGENT_ENGINE_RESOURCE_ID"
+        value_source {
+          secret_key_ref {
+            secret  = var.agent_engine_secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      # Storage configuration (API-based)
+      env {
+        name  = "STORAGE_PROVIDER"
+        value = "s3"
+      }
+
+      env {
+        name  = "S3_BUCKET_NAME"
+        value = var.storage_bucket_name
+      }
+
+      env {
+        name  = "S3_ENDPOINT_URL"
+        value = "https://storage.googleapis.com"
+      }
+
+      # OAuth configuration
+      env {
+        name  = "ENABLE_OAUTH_SIGNUP"
+        value = "true"
+      }
+
+      env {
+        name  = "OAUTH_PROVIDER"
+        value = "google"
+      }
+
+      # Application settings
+      env {
+        name  = "ENVIRONMENT"
+        value = var.environment
+      }
+
+      env {
+        name  = "PORT"
+        value = "8080"
+      }
+
+      # Health check endpoints
       startup_probe {
+        initial_delay_seconds = 30
+        timeout_seconds       = 5
+        period_seconds        = 10
+        failure_threshold     = 5
+
         http_get {
           path = "/health"
-          port = var.container_port
+          port = 8080
         }
-        initial_delay_seconds = 240
-        timeout_seconds       = 240
-        period_seconds        = 240
-        failure_threshold     = 5
+      }
+
+      liveness_probe {
+        initial_delay_seconds = 30
+        timeout_seconds       = 5
+        period_seconds        = 30
+        failure_threshold     = 3
+
+        http_get {
+          path = "/health"
+          port = 8080
+        }
       }
     }
 
-    # VPC configuration (when VPC connector is provided)
-    dynamic "vpc_access" {
-      for_each = var.vpc_connector_name != "" ? [1] : []
-      content {
-        connector = "projects/${var.project_id}/locations/${var.region}/connectors/${var.vpc_connector_name}"
-        egress    = "PRIVATE_RANGES_ONLY"
-      }
-    }
+    # Timeout configuration
+    timeout = "240s"
 
-    # Container concurrency
-    max_instance_request_concurrency = var.container_concurrency
+    # Session affinity
+    session_affinity = false
   }
 
+  # Traffic configuration
   traffic {
     percent = 100
     type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
   }
 
-  lifecycle {
-    ignore_changes = [
-      template[0].annotations["run.googleapis.com/operation-id"]
-    ]
-  }
-
-  # Lets wait for initial build before creating cloud run container
-  depends_on = [null_resource.initial_image_build]
-
+  depends_on = [
+    var.services_ready,
+    var.networking_ready,
+    var.secrets_ready,
+    var.storage_ready,
+    var.database_ready,
+    var.redis_ready,
+    var.artifact_registry_ready
+  ]
 }
 
-# IAM policy for public access (if enabled)
+# IAM policy for unauthenticated access
 resource "google_cloud_run_v2_service_iam_member" "public_access" {
-  count    = var.allow_public_access ? 1 : 0
-  name     = google_cloud_run_v2_service.openwebui.name
-  location = google_cloud_run_v2_service.openwebui.location
+  project  = var.project_id
+  location = google_cloud_run_v2_service.open_webui.location
+  name     = google_cloud_run_v2_service.open_webui.name
   role     = "roles/run.invoker"
   member   = "allUsers"
 }
 
-# IAM policy for authenticated access (if public access is disabled)
-resource "google_cloud_run_v2_service_iam_member" "authenticated_access" {
-  count    = var.allow_public_access ? 0 : 1
-  name     = google_cloud_run_v2_service.openwebui.name
-  location = google_cloud_run_v2_service.openwebui.location
-  role     = "roles/run.invoker"
-  member   = "allAuthenticatedUsers"
-}
+# Create custom domain mapping (optional)
+resource "google_cloud_run_domain_mapping" "custom_domain" {
+  count = var.custom_domain != null ? 1 : 0
 
-data "google_artifact_registry_repository" "openwebui" {
-  location      = var.region
-  project       = var.project_id
-  repository_id = var.artifact_repository_name
-}
+  location = google_cloud_run_v2_service.open_webui.location
+  name     = var.custom_domain
+  project  = var.project_id
 
-# Generates initial image and pushes to artifact registry, to be used by cloud run container
-# @TODO Skip generating the image if one already exists, except when Dockerfile changes.
-resource "null_resource" "initial_image_build" {
-  triggers = {
-    build_trigger = timestamp()
+  metadata {
+    namespace = var.project_id
+    labels    = local.common_labels
   }
 
-  provisioner "local-exec" {
-    command = "gcloud builds submit --config=${path.module}/../../../cloudbuild-initial.yaml --project=${var.project_id} --region=${var.region} --machine-type=E2_HIGHCPU_8 --substitutions=_ARTIFACT_REGISTRY_URL=${var.artifact_repository_url} ${path.module}/../../../../"
+  spec {
+    route_name = google_cloud_run_v2_service.open_webui.name
   }
-}
+
+  depends_on = [google_cloud_run_v2_service.open_webui]
+} 

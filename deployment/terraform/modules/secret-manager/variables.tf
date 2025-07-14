@@ -29,6 +29,17 @@ variable "region" {
   }
 }
 
+variable "backup_region" {
+  description = "GCP backup region for multi-region replication"
+  type        = string
+  default     = "us-east1"
+
+  validation {
+    condition     = can(regex("^[a-z]+-[a-z]+[0-9]+$", var.backup_region))
+    error_message = "Backup region must be a valid GCP region format (e.g., us-east1)."
+  }
+}
+
 variable "services_ready" {
   description = "Indicates that required services are enabled"
   type        = bool
@@ -55,37 +66,32 @@ variable "cloud_build_service_account_email" {
   }
 }
 
-variable "enable_bucket_notifications" {
-  description = "Enable bucket notifications for changes"
-  type        = bool
-  default     = false
-}
-
-variable "notification_topic" {
-  description = "Pub/Sub topic for bucket notifications"
-  type        = string
-  default     = null
-}
-
-variable "force_destroy_buckets" {
-  description = "Allow destruction of buckets with objects (use with caution)"
-  type        = bool
-  default     = false
-}
-
-variable "bucket_versioning_enabled" {
-  description = "Enable versioning for the main data bucket"
-  type        = bool
-  default     = true
-}
-
-variable "bucket_lifecycle_age_days" {
-  description = "Number of days before objects are deleted by lifecycle policy"
-  type        = number
-  default     = 90
+variable "developer_emails" {
+  description = "List of developer email addresses for staging environment secret access"
+  type        = list(string)
+  default     = []
 
   validation {
-    condition     = var.bucket_lifecycle_age_days > 0 && var.bucket_lifecycle_age_days <= 365
-    error_message = "Bucket lifecycle age must be between 1 and 365 days."
+    condition = alltrue([
+      for email in var.developer_emails : can(regex("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$", email))
+    ])
+    error_message = "All developer emails must be valid email addresses."
+  }
+}
+
+variable "enable_ssl_secret" {
+  description = "Enable SSL certificate secrets for custom domain"
+  type        = bool
+  default     = false
+}
+
+variable "secret_replication_type" {
+  description = "Type of replication for secrets (auto, user-managed)"
+  type        = string
+  default     = "auto"
+
+  validation {
+    condition     = contains(["auto", "user-managed"], var.secret_replication_type)
+    error_message = "Secret replication type must be either 'auto' or 'user-managed'."
   }
 } 

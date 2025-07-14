@@ -1,45 +1,158 @@
-# Google Cloud Configuration
-project_id = "your-gcp-project-id"
-region     = "us-central1"
-zone       = "us-central1-a"
+# =============================================================================
+# Open WebUI Terraform Configuration - Staging Environment
+# =============================================================================
+# This file contains example values for all required variables.
+# Copy this file to terraform.tfvars and update with your actual values.
+# NEVER commit terraform.tfvars to version control!
 
-# Storage Configuration
-storage_bucket_name = "your-project-id-openwebui-staging-storage"
+# =============================================================================
+# Project Configuration
+# =============================================================================
+project_id = "your-project-id"              # Your GCP project ID
+region     = "us-central1"                  # Primary GCP region
+backup_region = "us-east1"                  # Backup region for multi-region resources
 
-# Source Code Repository
-repository_url = "https://github.com/your-org/your-repo"
-github_owner   = "your-org"
-github_repo    = "your-repo"
+# =============================================================================
+# Developer Configuration
+# =============================================================================
+# List of developer email addresses for staging environment access
+developer_emails = [
+  "developer1@example.com",
+  "developer2@example.com"
+]
 
-# OAuth Configuration (create these in Google Cloud Console)
-google_oauth_client_id     = "your-oauth-client-id.apps.googleusercontent.com"
-google_oauth_client_secret = "your-oauth-client-secret"
+# =============================================================================
+# OAuth Configuration
+# =============================================================================
+# Google OAuth configuration (client secret stored in Secret Manager)
+oauth_client_id = "123456789-abcdef123456.apps.googleusercontent.com"
+oauth_client_secret = "GOCSPX-your-oauth-client-secret-here"
 
-# Notification Email (optional)
-notification_email = "alerts@your-domain.com"
+# OAuth redirect URIs for your application
+oauth_redirect_uris = [
+  "https://your-staging-domain.com/auth/callback",
+  "https://staging-open-webui.run.app/auth/callback"
+]
 
-# Staging Database Configuration
-database_tier      = "db-g1-small"
-database_disk_size = 30
+# OAuth consent screen configuration
+oauth_support_email = "support@example.com"
+oauth_developer_email = "developer@example.com"
 
-# Staging Redis Configuration
-redis_memory_size_gb = 2
-redis_tier          = "STANDARD_HA"
+# =============================================================================
+# Agent Engine Configuration (External Resource)
+# =============================================================================
+# These settings reference an EXTERNAL Agent Engine that must already exist
+agent_engine_project_id = "your-agent-engine-project-id"
+agent_engine_location = "us-central1"
+agent_engine_resource_name = "your-agent-engine-resource-name"
 
-# Staging Cloud Run Configuration
-cloud_run_cpu_limit     = "2"
-cloud_run_memory_limit  = "4Gi"
-cloud_run_min_instances = 1
-cloud_run_max_instances = 10
-uvicorn_workers        = "2"
+# Optional: Custom URL for testing (leave empty for production)
+agent_engine_custom_url = "https://your-custom-agent-engine-url.com"
 
-# Feature Flags
+# =============================================================================
+# Cloud Run Configuration
+# =============================================================================
+# Resource limits (2 CPU, 4GB RAM as specified)
+cloud_run_cpu = "2000m"                    # 2 CPUs (2000 millicores)
+cloud_run_memory = "4096Mi"                # 4GB RAM
+
+# =============================================================================
+# Database Configuration
+# =============================================================================
+# Staging uses minimal resources for cost optimization
+database_tier = "db-f1-micro"              # Minimal tier for staging
+database_disk_size = 20                    # 20GB disk (minimum)
+
+# =============================================================================
+# Redis Configuration
+# =============================================================================
+# BASIC tier for caching (non-persistent)
+redis_memory_size_gb = 1                   # 1GB memory for staging
+
+# =============================================================================
+# GitHub Configuration (Optional)
+# =============================================================================
+# GitHub connection for Cloud Build triggers
+github_connection_id = "your-github-connection-id"
+github_repo_owner = "your-github-username"
+github_repo_name = "your-repo-name"
+
+# =============================================================================
+# Optional Configuration
+# =============================================================================
+# Custom domain (optional)
+custom_domain = "staging.your-domain.com"
+
+# Monitoring and logging
 enable_monitoring = true
+enable_logging = true
 
-# Custom Labels
-labels = {
-  application = "open-webui"
-  environment = "staging"
+# Notification channels for alerts
+notification_channels = [
+  "projects/your-project-id/notificationChannels/your-channel-id"
+]
+
+# Additional labels for all resources
+additional_labels = {
   team        = "your-team"
-  managed-by  = "terraform"
-} 
+  cost-center = "your-cost-center"
+  project     = "open-webui"
+}
+
+# Resource destruction (use with caution)
+force_destroy = false                      # Set to true only for testing
+
+# =============================================================================
+# IMPORTANT NOTES
+# =============================================================================
+# 
+# 1. SECRET MANAGEMENT:
+#    - oauth_client_secret is stored in Secret Manager automatically
+#    - Never commit this file with real secrets to version control
+#    - All other sensitive data is managed through Secret Manager
+#
+# 2. PREREQUISITES:
+#    - Complete all steps in prerequisites.md first
+#    - Ensure Agent Engine is deployed and accessible
+#    - Configure OAuth consent screen manually in Google Cloud Console
+#    - Set up GitHub connection for Cloud Build triggers
+#
+# 3. DEPLOYMENT PROCESS:
+#    - Copy this file to terraform.tfvars
+#    - Update all values with your actual configuration
+#    - Run: terraform init
+#    - Run: terraform plan
+#    - Run: terraform apply
+#
+# 4. STAGING ENVIRONMENT:
+#    - Auto-deploys on main branch push
+#    - Minimal resources for cost optimization
+#    - Min/Max instances: 1/1 (no auto-scaling)
+#    - Database: db-f1-micro (minimal tier)
+#    - Redis: 1GB BASIC tier
+#
+# 5. SECURITY:
+#    - All sensitive data in Secret Manager
+#    - Private IP only for database and Redis
+#    - VPC Connector for private service access
+#    - SSL enforcement for all connections
+#
+# 6. MONITORING:
+#    - Cloud Monitoring enabled by default
+#    - Structured logging to Cloud Logging
+#    - Health checks with 240s timeout
+#    - Custom dashboards for key metrics
+#
+# 7. COST OPTIMIZATION:
+#    - Minimal resource sizing for staging
+#    - Auto-scaling disabled (1 instance)
+#    - Lifecycle policies for storage
+#    - BASIC Redis tier (non-persistent)
+#
+# 8. SUPPORT:
+#    - Check deployment/terraform/README.md
+#    - Review module documentation
+#    - Monitor deployment logs in Cloud Console
+#    - Contact team for deployment issues
+#
+# ============================================================================= 

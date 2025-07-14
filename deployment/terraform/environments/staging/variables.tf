@@ -1,171 +1,265 @@
+# Project Configuration
 variable "project_id" {
-  description = "Google Cloud Project ID"
+  description = "The GCP project ID where resources will be created"
   type        = string
+
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9-]{4,28}[a-z0-9]$", var.project_id))
+    error_message = "Project ID must be 6-30 characters, start with a letter, and contain only lowercase letters, numbers, and hyphens."
+  }
 }
 
 variable "region" {
-  description = "Google Cloud region"
+  description = "GCP region for regional resources"
   type        = string
   default     = "us-central1"
+
+  validation {
+    condition     = can(regex("^[a-z]+-[a-z]+[0-9]+$", var.region))
+    error_message = "Region must be a valid GCP region format (e.g., us-central1)."
+  }
 }
 
-variable "zone" {
-  description = "Google Cloud zone"
+variable "backup_region" {
+  description = "GCP backup region for multi-region replication"
   type        = string
-  default     = "us-central1-a"
+  default     = "us-east1"
+
+  validation {
+    condition     = can(regex("^[a-z]+-[a-z]+[0-9]+$", var.backup_region))
+    error_message = "Backup region must be a valid GCP region format (e.g., us-east1)."
+  }
 }
 
-# Storage Configuration
-variable "storage_bucket_name" {
-  description = "Name of the Cloud Storage bucket"
-  type        = string
-}
+# Developer Configuration
+variable "developer_emails" {
+  description = "List of developer email addresses for staging environment access"
+  type        = list(string)
+  default     = []
 
-# Database Configuration (Staging sizing - between dev and prod)
-variable "database_tier" {
-  description = "Cloud SQL instance tier"
-  type        = string
-  default     = "db-g1-small"  # Production-like tier for staging
-}
-
-variable "database_disk_size" {
-  description = "Database disk size in GB"
-  type        = number
-  default     = 20  # Moderate size for staging
-}
-
-# Redis Configuration (Staging sizing)
-variable "redis_memory_size_gb" {
-  description = "Redis memory size in GB"
-  type        = number
-  default     = 2  # Moderate memory for staging
-}
-
-variable "redis_tier" {
-  description = "Redis service tier"
-  type        = string
-  default     = "STANDARD_HA"  # Test HA features in staging
-}
-
-# Networking Configuration
-variable "vpc_connector_cidr" {
-  description = "CIDR range for VPC connector subnet"
-  type        = string
-  default     = "10.18.0.0/28"  # Different CIDR for staging
-}
-
-variable "database_subnet_cidr" {
-  description = "CIDR range for database subnet"
-  type        = string
-  default     = "10.19.0.0/24"  # Different CIDR for staging
-}
-
-variable "vpc_connector_min_instances" {
-  description = "Minimum instances for VPC connector"
-  type        = number
-  default     = 2
-}
-
-variable "vpc_connector_max_instances" {
-  description = "Maximum instances for VPC connector"
-  type        = number
-  default     = 3  # Moderate scaling for staging
-}
-
-# Cloud Run Configuration (Staging sizing)
-variable "cloud_run_service_name" {
-  description = "Name of the Cloud Run service"
-  type        = string
-  default     = "open-webui"
-}
-
-variable "cloud_run_cpu_limit" {
-  description = "CPU limit for Cloud Run instances"
-  type        = string
-  default     = "2"  # Moderate CPU for staging
-}
-
-variable "cloud_run_memory_limit" {
-  description = "Memory limit for Cloud Run instances"
-  type        = string
-  default     = "4Gi"  # Moderate memory for staging
-}
-
-variable "cloud_run_min_instances" {
-  description = "Minimum number of Cloud Run instances"
-  type        = number
-  default     = 1  # Keep one instance warm in staging
-}
-
-variable "cloud_run_max_instances" {
-  description = "Maximum number of Cloud Run instances"
-  type        = number
-  default     = 5  # Moderate scaling for staging
-}
-
-variable "uvicorn_workers" {
-  description = "Number of Uvicorn workers"
-  type        = string
-  default     = "2"  # Multiple workers for staging
-}
-
-# Artifact Registry
-variable "artifact_repository_name" {
-  description = "Name of the Artifact Registry repository"
-  type        = string
-  default     = "open-webui"
-}
-
-# Source Code
-variable "repository_url" {
-  description = "Git repository URL for the application code"
-  type        = string
-}
-
-variable "github_owner" {
-  description = "GitHub repository owner"
-  type        = string
-}
-
-variable "github_repo" {
-  description = "GitHub repository name"
-  type        = string
+  validation {
+    condition = alltrue([
+      for email in var.developer_emails : can(regex("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$", email))
+    ])
+    error_message = "All developer emails must be valid email addresses."
+  }
 }
 
 # OAuth Configuration
-variable "google_oauth_client_id" {
+variable "oauth_client_id" {
   description = "Google OAuth client ID"
   type        = string
-  sensitive   = true
+
+  validation {
+    condition     = can(regex("^[0-9]+-[a-zA-Z0-9]+\\.apps\\.googleusercontent\\.com$", var.oauth_client_id))
+    error_message = "OAuth client ID must be in format: 123456789-abcdef123456.apps.googleusercontent.com"
+  }
 }
 
-variable "google_oauth_client_secret" {
-  description = "Google OAuth client secret"
+variable "oauth_client_secret" {
+  description = "Google OAuth client secret (sensitive)"
   type        = string
   sensitive   = true
+
+  validation {
+    condition     = length(var.oauth_client_secret) >= 10
+    error_message = "OAuth client secret must be at least 10 characters long."
+  }
 }
 
-# Notification Configuration
-variable "notification_email" {
-  description = "Email address for monitoring notifications"
+variable "oauth_redirect_uris" {
+  description = "List of authorized redirect URIs for OAuth"
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition = alltrue([
+      for uri in var.oauth_redirect_uris : can(regex("^https://", uri))
+    ])
+    error_message = "All redirect URIs must use HTTPS."
+  }
+}
+
+variable "oauth_support_email" {
+  description = "Support email for OAuth consent screen"
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.oauth_support_email == null || can(regex("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$", var.oauth_support_email))
+    error_message = "Support email must be a valid email address."
+  }
+}
+
+variable "oauth_developer_email" {
+  description = "Developer email for OAuth consent screen"
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.oauth_developer_email == null || can(regex("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$", var.oauth_developer_email))
+    error_message = "Developer email must be a valid email address."
+  }
+}
+
+# Agent Engine Configuration
+variable "agent_engine_project_id" {
+  description = "The GCP project ID where the external Agent Engine is deployed"
+  type        = string
+
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9-]{4,28}[a-z0-9]$", var.agent_engine_project_id))
+    error_message = "Agent Engine project ID must be 6-30 characters, start with a letter, and contain only lowercase letters, numbers, and hyphens."
+  }
+}
+
+variable "agent_engine_location" {
+  description = "Location of the external Agent Engine"
+  type        = string
+  default     = "us-central1"
+
+  validation {
+    condition     = can(regex("^[a-z]+-[a-z]+[0-9]+$", var.agent_engine_location))
+    error_message = "Agent Engine location must be a valid GCP region format (e.g., us-central1)."
+  }
+}
+
+variable "agent_engine_resource_name" {
+  description = "Resource name/ID of the external Agent Engine"
+  type        = string
+
+  validation {
+    condition     = length(var.agent_engine_resource_name) > 0
+    error_message = "Agent Engine resource name cannot be empty."
+  }
+}
+
+variable "agent_engine_custom_url" {
+  description = "Custom URL for Agent Engine (for testing purposes)"
   type        = string
   default     = ""
+
+  validation {
+    condition     = var.agent_engine_custom_url == "" || can(regex("^https://", var.agent_engine_custom_url))
+    error_message = "Agent Engine custom URL must be empty or use HTTPS."
+  }
 }
 
-# Feature Flags
+# Cloud Run Configuration
+variable "cloud_run_cpu" {
+  description = "CPU limit for Cloud Run service"
+  type        = string
+  default     = "2000m"
+
+  validation {
+    condition     = can(regex("^[0-9]+m?$", var.cloud_run_cpu))
+    error_message = "CPU limit must be a valid format (e.g., 2000m or 2)."
+  }
+}
+
+variable "cloud_run_memory" {
+  description = "Memory limit for Cloud Run service"
+  type        = string
+  default     = "4096Mi"
+
+  validation {
+    condition     = can(regex("^[0-9]+[KMG]i?$", var.cloud_run_memory))
+    error_message = "Memory limit must be a valid format (e.g., 4096Mi or 4Gi)."
+  }
+}
+
+# Database Configuration
+variable "database_tier" {
+  description = "Database tier for Cloud SQL instance"
+  type        = string
+  default     = "db-f1-micro"
+
+  validation {
+    condition = contains([
+      "db-f1-micro", "db-g1-small", "db-n1-standard-1", "db-n1-standard-2",
+      "db-n1-standard-4", "db-n1-standard-8", "db-n1-standard-16",
+      "db-n1-standard-32", "db-n1-standard-64", "db-n1-standard-96",
+      "db-custom-1-3840", "db-custom-2-7680", "db-custom-4-15360"
+    ], var.database_tier)
+    error_message = "Database tier must be a valid Cloud SQL tier."
+  }
+}
+
+variable "database_disk_size" {
+  description = "Disk size in GB for the database"
+  type        = number
+  default     = 20
+
+  validation {
+    condition     = var.database_disk_size >= 10 && var.database_disk_size <= 64000
+    error_message = "Database disk size must be between 10 and 64000 GB."
+  }
+}
+
+# Redis Configuration
+variable "redis_memory_size_gb" {
+  description = "Memory size in GB for Redis instance"
+  type        = number
+  default     = 1
+
+  validation {
+    condition     = var.redis_memory_size_gb >= 1 && var.redis_memory_size_gb <= 300
+    error_message = "Redis memory size must be between 1 and 300 GB."
+  }
+}
+
+# GitHub Configuration
+variable "github_connection_id" {
+  description = "GitHub connection ID for Cloud Build"
+  type        = string
+  default     = null
+}
+
+variable "github_repo_owner" {
+  description = "GitHub repository owner"
+  type        = string
+  default     = null
+}
+
+variable "github_repo_name" {
+  description = "GitHub repository name"
+  type        = string
+  default     = null
+}
+
+# Optional Configuration
+variable "custom_domain" {
+  description = "Custom domain for the Cloud Run service"
+  type        = string
+  default     = null
+}
+
 variable "enable_monitoring" {
   description = "Enable monitoring and alerting"
   type        = bool
-  default     = true  # Enable monitoring in staging to test alerts
+  default     = true
 }
 
-# Labels
-variable "labels" {
-  description = "Labels to apply to all resources"
+variable "enable_logging" {
+  description = "Enable detailed logging"
+  type        = bool
+  default     = true
+}
+
+variable "notification_channels" {
+  description = "List of notification channels for alerts"
+  type        = list(string)
+  default     = []
+}
+
+variable "additional_labels" {
+  description = "Additional labels to apply to all resources"
   type        = map(string)
-  default = {
-    application = "open-webui"
-    environment = "staging"
-    managed-by  = "terraform"
-  }
+  default     = {}
+}
+
+variable "force_destroy" {
+  description = "Allow destruction of resources with data (use with caution)"
+  type        = bool
+  default     = false
 } 
