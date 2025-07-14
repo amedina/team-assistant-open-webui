@@ -262,4 +262,10 @@ variable "force_destroy" {
   description = "Allow destruction of resources with data (use with caution)"
   type        = bool
   default     = false
-} 
+}
+
+variable "environment" {
+  description = "Deployment environment (e.g., staging, prod)"
+  type        = string
+  default     = "staging"
+}
