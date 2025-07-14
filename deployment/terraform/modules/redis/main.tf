@@ -4,10 +4,6 @@ terraform {
       source  = "hashicorp/google"
       version = ">= 4.0.0"
     }
-    random = {
-      source  = "hashicorp/random"
-      version = "~> 3.0"
-    }
   }
 }
 
@@ -17,18 +13,6 @@ locals {
     environment = var.environment
     managed-by  = "terraform"
   }
-}
-
-# Generate auth string for Redis
-resource "random_password" "redis_auth" {
-  length  = 32
-  special = true
-
-  # Redis auth requirements
-  min_lower   = 1
-  min_upper   = 1
-  min_numeric = 1
-  min_special = 1
 }
 
 # Redis instance (Memorystore)
@@ -47,7 +31,6 @@ resource "google_redis_instance" "cache" {
 
   # Auth configuration
   auth_enabled = true
-  auth_string  = random_password.redis_auth.result
 
   # Labels
   labels = local.common_labels
@@ -89,7 +72,7 @@ resource "google_redis_instance" "cache" {
 
 # Create Redis URL with authentication
 locals {
-  redis_url = "redis://:${random_password.redis_auth.result}@${google_redis_instance.cache.host}:${google_redis_instance.cache.port}/0"
+  redis_url = "redis://:${google_redis_instance.cache.auth_string}@${google_redis_instance.cache.host}:${google_redis_instance.cache.port}/0"
 }
 
 # Store Redis URL in Secret Manager
@@ -118,7 +101,6 @@ resource "google_redis_instance" "sessions" {
 
   # Auth configuration
   auth_enabled = true
-  auth_string  = random_password.redis_auth.result
 
   # Labels
   labels = merge(local.common_labels, {
@@ -218,4 +200,4 @@ resource "google_monitoring_alert_policy" "redis_connections" {
   }
 
   depends_on = [google_redis_instance.cache]
-} 
+}

@@ -52,10 +52,7 @@ resource "google_storage_bucket" "open_webui_data" {
     }
   }
 
-  # Encryption with Google-managed keys
-  encryption {
-    default_kms_key_name = null
-  }
+  # Uses Google-managed encryption by default (no explicit configuration needed)
 
   # CORS configuration for web access
   cors {
@@ -183,4 +180,4 @@ resource "google_storage_notification" "bucket_notification" {
     google_storage_bucket.open_webui_data,
     var.notification_topic
   ]
-} 
+}

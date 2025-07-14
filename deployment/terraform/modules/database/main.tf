@@ -65,16 +65,8 @@ resource "google_sql_database_instance" "postgresql" {
       ipv4_enabled                                  = false
       private_network                               = var.vpc_network_id
       enable_private_path_for_google_cloud_services = true
-      require_ssl                                   = true
 
-      # No authorized networks for private IP
-      dynamic "authorized_networks" {
-        for_each = []
-        content {
-          name  = authorized_networks.value.name
-          value = authorized_networks.value.value
-        }
-      }
+      # No authorized networks for private IP since we're using private networking
     }
 
     # Database flags for optimization
@@ -198,7 +190,6 @@ resource "google_sql_database_instance" "read_replica" {
       ipv4_enabled                                  = false
       private_network                               = var.vpc_network_id
       enable_private_path_for_google_cloud_services = true
-      require_ssl                                   = true
     }
 
     # User labels
@@ -234,4 +225,4 @@ resource "google_sql_database" "analytics_database" {
 
   charset   = "UTF8"
   collation = "en_US.UTF8"
-} 
+}

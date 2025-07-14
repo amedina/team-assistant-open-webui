@@ -116,4 +116,4 @@ output "oauth_compliance_info" {
     developer_email_configured = var.developer_email != null
     verification_status        = "Manual verification required"
   }
-} 
+}

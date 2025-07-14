@@ -70,11 +70,11 @@ This document outlines the manual steps required to configure Google OAuth for O
 2. Navigate to **APIs & Services > OAuth consent screen**
 3. Configure the consent screen with:
    - Application name: Open WebUI (${var.environment})
-   - User support email: ${var.support_email}
-   - Developer contact information: ${var.developer_email}
-   - Application domain: ${var.application_domain}
-   - Privacy policy: ${var.privacy_policy_url}
-   - Terms of service: ${var.terms_of_service_url}
+   - User support email: ${var.support_email != null ? var.support_email : "TBD - Configure in variables"}
+   - Developer contact information: ${var.developer_email != null ? var.developer_email : "TBD - Configure in variables"}
+   - Application domain: ${var.application_domain != null ? var.application_domain : "TBD - Configure in variables"}
+   - Privacy policy: ${var.privacy_policy_url != null ? var.privacy_policy_url : "TBD - Configure in variables"}
+   - Terms of service: ${var.terms_of_service_url != null ? var.terms_of_service_url : "TBD - Configure in variables"}
 
 ### 2. OAuth Client Configuration
 1. Go to **APIs & Services > Credentials**
@@ -122,7 +122,7 @@ Test OAuth flow:
 - Monitor OAuth usage in Cloud Console
 
 ## Support
-For issues with OAuth configuration, contact: ${var.support_email}
+For issues with OAuth configuration, contact: ${var.support_email != null ? var.support_email : "TBD - Configure support_email variable"}
 EOT
 }
 
@@ -178,4 +178,4 @@ resource "null_resource" "oauth_health_check" {
       echo "Status: Ready for manual configuration"
     EOT
   }
-} 
+}

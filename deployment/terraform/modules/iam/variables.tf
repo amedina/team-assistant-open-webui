@@ -32,9 +32,10 @@ variable "region" {
 variable "storage_bucket_name" {
   description = "Name of the storage bucket for Open WebUI data"
   type        = string
+  default     = null
 
   validation {
-    condition     = can(regex("^[a-z0-9][a-z0-9-_]{1,61}[a-z0-9]$", var.storage_bucket_name))
+    condition     = var.storage_bucket_name == null || can(regex("^[a-z0-9][a-z0-9-_]{1,61}[a-z0-9]$", var.storage_bucket_name))
     error_message = "Storage bucket name must be 3-63 characters, start and end with lowercase letters or numbers, and contain only lowercase letters, numbers, hyphens, and underscores."
   }
 }
@@ -43,4 +44,4 @@ variable "services_ready" {
   description = "Indicates that required services are enabled"
   type        = bool
   default     = true
-} 
+}

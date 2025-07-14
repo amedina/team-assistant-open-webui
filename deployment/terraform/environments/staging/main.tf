@@ -46,11 +46,10 @@ module "project_services" {
 module "iam" {
   source = "../../modules/iam"
 
-  project_id          = var.project_id
-  environment         = local.environment
-  region              = var.region
-  storage_bucket_name = module.storage.data_bucket_name
-  services_ready      = module.project_services.services_ready
+  project_id     = var.project_id
+  environment    = local.environment
+  region         = var.region
+  services_ready = module.project_services.services_ready
 
   depends_on = [module.project_services]
 }
@@ -80,6 +79,15 @@ module "storage" {
   cloud_build_service_account_email = module.iam.cloud_build_service_account_email
 
   depends_on = [module.project_services, module.iam]
+}
+
+# Apply bucket IAM after both IAM and storage modules are ready
+resource "google_storage_bucket_iam_member" "cloud_run_bucket_access" {
+  bucket = module.storage.data_bucket_name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${module.iam.cloud_run_service_account_email}"
+
+  depends_on = [module.iam, module.storage]
 }
 
 # Create secret manager resources
@@ -226,4 +234,4 @@ module "cloud_run" {
     module.redis,
     module.artifact_registry
   ]
-} 
+}

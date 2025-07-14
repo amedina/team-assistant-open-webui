@@ -20,7 +20,7 @@ output "redis_port" {
 
 output "redis_auth_string" {
   description = "Authentication string for Redis (sensitive)"
-  value       = random_password.redis_auth.result
+  value       = google_redis_instance.cache.auth_string
   sensitive   = true
 }
 
@@ -175,4 +175,4 @@ output "redis_network_info" {
     region             = google_redis_instance.cache.region
     location_id        = google_redis_instance.cache.location_id
   }
-} 
+}

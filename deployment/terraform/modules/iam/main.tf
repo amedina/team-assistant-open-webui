@@ -17,7 +17,7 @@ locals {
 
 # Cloud Run Service Account
 resource "google_service_account" "cloud_run" {
-  account_id   = "${var.environment}-open-webui-cloudrun-sa"
+  account_id   = "${var.environment}-webui-run-sa"
   display_name = "Open WebUI Cloud Run Service Account (${var.environment})"
   description  = "Service account for Open WebUI Cloud Run service in ${var.environment} environment"
   project      = var.project_id
@@ -25,7 +25,7 @@ resource "google_service_account" "cloud_run" {
 
 # Cloud Build Service Account
 resource "google_service_account" "cloud_build" {
-  account_id   = "${var.environment}-open-webui-cloudbuild-sa"
+  account_id   = "${var.environment}-webui-build-sa"
   display_name = "Open WebUI Cloud Build Service Account (${var.environment})"
   description  = "Service account for Open WebUI Cloud Build operations in ${var.environment} environment"
   project      = var.project_id
@@ -98,9 +98,9 @@ resource "google_project_iam_member" "cloud_run_storage_custom" {
 
 # Specific bucket IAM binding for Cloud Run service account
 resource "google_storage_bucket_iam_member" "cloud_run_bucket_access" {
+  count = var.storage_bucket_name != null ? 1 : 0
+
   bucket = var.storage_bucket_name
   role   = "roles/storage.objectAdmin"
   member = "serviceAccount:${google_service_account.cloud_run.email}"
-
-  depends_on = [var.storage_bucket_name]
-} 
+}
