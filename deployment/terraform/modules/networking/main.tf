@@ -53,10 +53,6 @@ resource "google_compute_subnetwork" "vpc_connector" {
 
   # VPC Connector specific settings
   private_ip_google_access = true
-
-  # Purpose must be set for VPC Connector
-  purpose = "VPC_PEERING"
-  role    = "ACTIVE"
 }
 
 # Private service connection for Cloud SQL and Redis
@@ -78,10 +74,12 @@ resource "google_service_networking_connection" "private_service_connection" {
 
 # VPC Connector for Cloud Run (mandatory for private service access)
 resource "google_vpc_access_connector" "connector" {
-  name          = "${var.environment}-open-webui-vpc-connector"
+  name          = "${var.environment}-vpc-connector"
   region        = var.region
-  network       = google_compute_network.vpc.name
-  ip_cidr_range = "10.8.0.0/28"
+
+  subnet {
+    name = google_compute_subnetwork.vpc_connector.name
+  }
 
   min_throughput = 200
   max_throughput = var.environment == "prod" ? 1000 : 300
@@ -189,4 +187,34 @@ resource "google_compute_router_nat" "nat" {
     enable = true
     filter = "ERRORS_ONLY"
   }
-} 
+}
+
+# Cleanup resource for auto-created VPC Connector resources
+resource "null_resource" "vpc_connector_cleanup" {
+  triggers = {
+    vpc_connector_name = google_vpc_access_connector.connector.name
+    region            = var.region
+    project_id        = var.project_id
+  }
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = <<-EOT
+      # Clean up auto-created firewall rules
+      gcloud compute firewall-rules list \
+        --filter="name~'.*${self.triggers.vpc_connector_name}.*'" \
+        --format="value(name)" \
+        --project=${self.triggers.project_id} | \
+      while read rule; do
+        if [ ! -z "$rule" ]; then
+          echo "Deleting auto-created firewall rule: $rule"
+          gcloud compute firewall-rules delete "$rule" \
+            --project=${self.triggers.project_id} \
+            --quiet || true
+        fi
+      done
+    EOT
+  }
+
+  depends_on = [google_vpc_access_connector.connector]
+}
