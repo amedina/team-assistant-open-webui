@@ -142,8 +142,8 @@ resource "google_monitoring_alert_policy" "redis_memory" {
     display_name = "Redis memory usage > 80%"
 
     condition_threshold {
-      filter          = "resource.type=\"redis_instance\" AND resource.labels.instance_id=\"${google_redis_instance.cache.id}\""
-      comparison      = "COMPARISON_GREATER_THAN"
+      filter          = "resource.type=\"redis_instance\" AND resource.labels.instance_id=\"${google_redis_instance.cache.id}\" AND metric.type=\"redis.googleapis.com/stats/memory/usage_ratio\""
+      comparison      = "COMPARISON_GT"
       threshold_value = 0.8
       duration        = "300s"
 
@@ -157,9 +157,6 @@ resource "google_monitoring_alert_policy" "redis_memory" {
   notification_channels = var.notification_channels
 
   alert_strategy {
-    notification_rate_limit {
-      period = "300s"
-    }
     auto_close = "1800s"
   }
 
@@ -178,8 +175,8 @@ resource "google_monitoring_alert_policy" "redis_connections" {
     display_name = "Redis connection count > 90% of limit"
 
     condition_threshold {
-      filter          = "resource.type=\"redis_instance\" AND resource.labels.instance_id=\"${google_redis_instance.cache.id}\""
-      comparison      = "COMPARISON_GREATER_THAN"
+      filter          = "resource.type=\"redis_instance\" AND resource.labels.instance_id=\"${google_redis_instance.cache.id}\" AND metric.type=\"redis.googleapis.com/clients/connected\""
+      comparison      = "COMPARISON_GT"
       threshold_value = 900 # 90% of 1000 default connections
       duration        = "300s"
 
@@ -193,9 +190,6 @@ resource "google_monitoring_alert_policy" "redis_connections" {
   notification_channels = var.notification_channels
 
   alert_strategy {
-    notification_rate_limit {
-      period = "300s"
-    }
     auto_close = "1800s"
   }
 
