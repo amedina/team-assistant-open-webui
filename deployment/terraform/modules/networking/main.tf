@@ -211,20 +211,22 @@ resource "null_resource" "service_networking_cleanup" {
     command = <<-EOT
       # Clean up service networking connection peering
       echo "Cleaning up service networking connection for VPC: ${self.triggers.vpc_network_name}"
+
+      # Get all peering names for this network
       gcloud services vpc-peerings list \
         --network=${self.triggers.vpc_network_name} \
         --project=${self.triggers.project_id} \
         --format="value(name)" 2>/dev/null | \
-      while read peering; do
-        if [ ! -z "$peering" ]; then
-          echo "Deleting VPC peering: $peering"
-          gcloud services vpc-peerings delete \
+      while read peering_name; do
+        if [ ! -z "$peering_name" ]; then
+          echo "Deleting VPC peering: $peering_name"
+          gcloud compute networks peerings delete "$peering_name" \
             --network=${self.triggers.vpc_network_name} \
-            --service=servicenetworking.googleapis.com \
             --project=${self.triggers.project_id} \
             --quiet || true
         fi
       done
+
     EOT
   }
 
