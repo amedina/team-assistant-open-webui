@@ -12,11 +12,13 @@ resource "google_cloudbuild_trigger" "initial_build_trigger" {
     _ARTIFACT_REGISTRY_URL = var.artifact_repository_url
   }
 
-  source_to_build {
-    uri      = var.source_path
-    ref      = "refs/heads/main"
-    repo_type = "CLOUD_SOURCE_REPOSITORIES"
+  trigger_template {
+    branch_name = var.branch_name
+    project_id  = var.project_id
+    repo_name   = var.github_repo_name
   }
+
+  included_files = ["**/*.tf", "**/*.tfvars", "Dockerfile"]
 }
 
 resource "null_resource" "initial_image_build" {

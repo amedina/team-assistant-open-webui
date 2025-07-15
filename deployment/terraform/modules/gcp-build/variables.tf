@@ -40,3 +40,8 @@ variable "branch_name" {
   type        = string
   default     = "main"
 }
+
+variable "github_repo_name" {
+  description = "The name of the GitHub repository."
+  type        = string
+}

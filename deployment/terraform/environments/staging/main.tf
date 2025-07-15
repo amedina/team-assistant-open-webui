@@ -198,6 +198,7 @@ module "gcp_build" {
   artifact_repository_url = module.artifact_registry.repository_url
   source_path             = "../../../../"
   branch_name             = var.branch_name
+  github_repo_name        = var.github_repo_name
 
   depends_on = [module.artifact_registry]
 }
