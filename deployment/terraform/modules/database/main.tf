@@ -129,7 +129,7 @@ resource "google_secret_manager_secret_version" "db_password" {
 
 # Create database URL and store in Secret Manager
 locals {
-  database_url = "postgresql://${google_sql_user.app_user.name}:${random_password.db_password.result}@${google_sql_database_instance.postgresql.private_ip_address}:5432/${google_sql_database.app_database.name}?sslmode=require"
+  database_url = "postgresql://${google_sql_user.app_user.name}:${urlencode(random_password.db_password.result)}@${google_sql_database_instance.postgresql.private_ip_address}:5432/${google_sql_database.app_database.name}?sslmode=require"
 }
 
 resource "google_secret_manager_secret_version" "database_url" {
