@@ -264,6 +264,12 @@ variable "force_destroy" {
   default     = false
 }
 
+variable "branch_name" {
+  description = "The branch to build from."
+  type        = string
+  default     = "main"
+}
+
 variable "environment" {
   description = "Deployment environment (e.g., staging, prod)"
   type        = string

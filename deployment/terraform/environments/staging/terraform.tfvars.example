@@ -76,6 +76,7 @@ redis_memory_size_gb = 1                   # 1GB memory for staging
 github_connection_id = "your-github-connection-id"
 github_repo_owner = "your-github-username"
 github_repo_name = "your-repo-name"
+branch_name = "main"
 
 # =============================================================================
 # Optional Configuration

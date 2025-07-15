@@ -188,6 +188,20 @@ module "oauth" {
   depends_on = [module.secret_manager, module.iam]
 }*/
 
+# Build initial image
+module "gcp_build" {
+  source = "../../modules/gcp-build"
+
+  project_id              = var.project_id
+  region                  = var.region
+  build_config_path       = "../../../cloudbuild-initial.yaml"
+  artifact_repository_url = module.artifact_registry.repository_url
+  source_path             = "../../../../"
+  branch_name             = var.branch_name
+
+  depends_on = [module.artifact_registry]
+}
+
 # Deploy Cloud Run service
 module "cloud_run" {
   source = "../../modules/cloud-run"
@@ -195,7 +209,7 @@ module "cloud_run" {
   project_id                      = var.project_id
   environment                     = local.environment
   region                          = var.region
-  container_image_url             = "${module.artifact_registry.repository_url}:${local.environment}-latest"
+  container_image_url             = "${module.artifact_registry.repository_url}/open-webui:latest"
   cloud_run_service_account_email = module.iam.cloud_run_service_account_email
   vpc_connector_name              = module.networking.vpc_connector_name
 
@@ -232,6 +246,7 @@ module "cloud_run" {
     module.storage,
     module.database,
     module.redis,
-    module.artifact_registry
+    module.artifact_registry,
+    module.gcp_build
   ]
 }
