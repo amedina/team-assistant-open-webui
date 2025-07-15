@@ -38,6 +38,9 @@ options:
   # Use Cloud Logging for better integration
   logging: 'CLOUD_LOGGING_ONLY'
 
+  # Enable streaming logs for real-time feedback
+  logStreamingOption: STREAM_ON
+
 # Image tags for organization
 tags:
   - 'open-webui'
