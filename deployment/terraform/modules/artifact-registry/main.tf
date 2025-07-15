@@ -32,27 +32,21 @@ resource "google_artifact_registry_repository" "container_images" {
 
   # Cleanup policies for cost optimization
   cleanup_policies {
-    id     = "keep-minimum-versions"
+    id     = "delete-old-versions"
     action = "DELETE"
-
+    
     condition {
-      tag_state    = "ANY"
-      tag_prefixes = ["latest", "v", "staging", "prod"]
-      older_than   = "${var.image_retention_days}d"
-    }
-
-    most_recent_versions {
-      keep_count = var.keep_recent_versions
+      tag_state = "TAGGED"
+      older_than = "2592000s" # 30 days
     }
   }
-
+  
   cleanup_policies {
-    id     = "cleanup-untagged"
-    action = "DELETE"
-
-    condition {
-      tag_state  = "UNTAGGED"
-      older_than = "${var.untagged_retention_days}d"
+    id     = "keep-recent-versions"
+    action = "KEEP"
+    
+    most_recent_versions {
+      keep_count = 5
     }
   }
 
@@ -248,4 +242,4 @@ resource "google_cloud_run_service_iam_member" "webhook_invoker" {
   service  = google_cloud_run_service.image_scanner_webhook[0].name
   role     = "roles/run.invoker"
   member   = "serviceAccount:${var.cloud_build_service_account_email}"
-} 
+}
