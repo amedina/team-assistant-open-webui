@@ -33,6 +33,7 @@ resource "google_cloudbuild_trigger" "initial_build_trigger" {
 
 resource "null_resource" "initial_image_build" {
   triggers = {
+    # This ensures the build only runs when the Dockerfile changes.
     dockerfile_sha256 = sha256(data.local_file.dockerfile.content)
   }
 
