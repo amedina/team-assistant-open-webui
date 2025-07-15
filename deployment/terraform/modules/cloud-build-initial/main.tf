@@ -38,6 +38,46 @@ resource "null_resource" "initial_image_build" {
   }
 
   provisioner "local-exec" {
-    command = "BUILD_ID=$(gcloud builds triggers run ${google_cloudbuild_trigger.initial_build_trigger.name} --project=${var.project_id} --region=${var.region} --branch=${var.trigger_branch}) && gcloud builds log --stream $BUILD_ID"
+    # Using bash -c allows for a more complex, multi-line script.
+    # This script triggers the build, polls for its status, and exits
+    # with a proper status code, failing the terraform apply on build failure.
+    interpreter = ["bash", "-c"]
+    command     = <<EOT
+      set -e # Exit immediately if a command exits with a non-zero status.
+
+      echo "Triggering initial image build for branch '${var.trigger_branch}'..."
+      BUILD_ID=$(gcloud builds triggers run ${google_cloudbuild_trigger.initial_build_trigger.name} \
+        --project=${var.project_id} \
+        --branch=${var.trigger_branch} \
+        --format="value(metadata.build.id)")
+
+      if [ -z "$BUILD_ID" ]; then
+        echo "Error: Failed to trigger build or retrieve build ID." >&2
+        exit 1
+      fi
+
+      echo "Build started with ID: $BUILD_ID. Waiting for completion..."
+
+      while true; do
+        STATUS=$(gcloud builds describe "$BUILD_ID" --project=${var.project_id} --format="value(status)")
+
+        case "$STATUS" in
+          SUCCESS)
+            echo "✅ Build $BUILD_ID completed successfully."
+            exit 0
+            ;;
+          FAILURE|INTERNAL_ERROR|TIMEOUT|CANCELLED)
+            echo "❌ Error: Build $BUILD_ID failed with status: $STATUS" >&2
+            LOGS_URL=$(gcloud builds describe "$BUILD_ID" --project=${var.project_id} --format="value(logUrl)")
+            echo "Logs available at: $LOGS_URL" >&2
+            exit 1
+            ;;
+          *)
+            echo "Build status is '$STATUS'. Waiting..."
+            sleep 15
+            ;;
+        esac
+      done
+    EOT
   }
 }
