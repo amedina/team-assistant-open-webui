@@ -189,18 +189,19 @@ module "oauth" {
 }*/
 
 # Build initial image
-module "gcp_build" {
-  source = "../../modules/gcp-build"
+module "cloud_build_initial" {
+  source = "../../modules/cloud-build-initial"
 
   project_id              = var.project_id
   region                  = var.region
-  build_config_path       = "../../../cloudbuild-initial.yaml"
+  build_config_path       = "deployment/cloudbuild-initial.yaml"
   artifact_repository_url = module.artifact_registry.repository_url
-  source_path             = "../../../../"
-  branch_name             = var.branch_name
+  trigger_branch          = var.branch_name
   github_repo_name        = var.github_repo_name
-
-  depends_on = [module.artifact_registry]
+  github_repo_owner       = var.github_repo_owner
+  cloud_build_service_account_email = module.iam.cloud_build_service_account_email
+  environment                       = local.environment
+  depends_on = [module.artifact_registry, module.iam]
 }
 
 # Deploy Cloud Run service
@@ -232,13 +233,14 @@ module "cloud_run" {
   storage_bucket_name = module.storage.data_bucket_name
 
   # Dependencies
-  services_ready          = module.project_services.services_ready
-  networking_ready        = module.networking.networking_ready
-  secrets_ready           = module.secret_manager.secrets_ready
-  storage_ready           = module.storage.storage_ready
-  database_ready          = module.database.database_ready
-  redis_ready             = module.redis.redis_ready
-  artifact_registry_ready = module.artifact_registry.artifact_registry_ready
+  services_ready            = module.project_services.services_ready
+  networking_ready          = module.networking.networking_ready
+  secrets_ready             = module.secret_manager.secrets_ready
+  storage_ready             = module.storage.storage_ready
+  database_ready            = module.database.database_ready
+  redis_ready               = module.redis.redis_ready
+  artifact_registry_ready   = module.artifact_registry.artifact_registry_ready
+  cloud_build_initial_ready = module.cloud_build_initial.cloud_build_initial_ready
 
   depends_on = [
     module.project_services,
@@ -248,6 +250,6 @@ module "cloud_run" {
     module.database,
     module.redis,
     module.artifact_registry,
-    module.gcp_build
+    module.cloud_build_initial,
   ]
 }
