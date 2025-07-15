@@ -56,7 +56,7 @@ resource "null_resource" "agent_engine_validation" {
 
 # Store Agent Engine resource ID in Secret Manager
 resource "google_secret_manager_secret_version" "agent_engine_id" {
-  secret      = var.agent_engine_secret_id
+  secret      = "projects/${var.project_id}/secrets/${var.agent_engine_secret_id}"
   secret_data = var.agent_engine_resource_name
 
   depends_on = [

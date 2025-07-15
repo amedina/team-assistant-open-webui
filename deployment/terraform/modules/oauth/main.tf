@@ -40,7 +40,7 @@ resource "null_resource" "oauth_validation" {
 
 # Store OAuth client secret in Secret Manager
 resource "google_secret_manager_secret_version" "oauth_client_secret" {
-  secret      = var.oauth_client_secret_secret_id
+  secret      = "projects/${var.project_id}/secrets/${var.oauth_client_secret_secret_id}"
   secret_data = var.oauth_client_secret_value
 
   depends_on = [

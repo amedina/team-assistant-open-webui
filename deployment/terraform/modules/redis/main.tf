@@ -77,7 +77,7 @@ locals {
 
 # Store Redis URL in Secret Manager
 resource "google_secret_manager_secret_version" "redis_url" {
-  secret      = var.redis_url_secret_id
+  secret      = "projects/${var.project_id}/secrets/${var.redis_url_secret_id}"
   secret_data = local.redis_url
 
   depends_on = [google_redis_instance.cache]

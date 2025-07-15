@@ -121,7 +121,7 @@ resource "google_sql_ssl_cert" "client_cert" {
 
 # Store database password in Secret Manager
 resource "google_secret_manager_secret_version" "db_password" {
-  secret      = var.database_password_secret_id
+  secret      = "projects/${var.project_id}/secrets/${var.database_password_secret_id}"
   secret_data = random_password.db_password.result
 
   depends_on = [google_sql_database_instance.postgresql]
@@ -133,7 +133,7 @@ locals {
 }
 
 resource "google_secret_manager_secret_version" "database_url" {
-  secret      = var.database_url_secret_id
+  secret      = "projects/${var.project_id}/secrets/${var.database_url_secret_id}"
   secret_data = local.database_url
 
   depends_on = [
