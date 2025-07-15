@@ -22,6 +22,11 @@ resource "google_compute_network" "vpc" {
   routing_mode            = "REGIONAL"
   description             = "VPC network for Open WebUI ${var.environment} environment"
 
+  # Ensure proper destruction order - peering must be destroyed first
+  lifecycle {
+    prevent_destroy = false
+  }
+
   depends_on = [var.services_ready]
 }
 
@@ -70,6 +75,11 @@ resource "google_service_networking_connection" "private_service_connection" {
   network                 = google_compute_network.vpc.id
   service                 = "servicenetworking.googleapis.com"
   reserved_peering_ranges = [google_compute_global_address.private_service_range.name]
+
+  # Ensure this connection is destroyed before VPC network
+  lifecycle {
+    prevent_destroy = false
+  }
 }
 
 # VPC Connector for Cloud Run (mandatory for private service access)
@@ -187,6 +197,38 @@ resource "google_compute_router_nat" "nat" {
     enable = true
     filter = "ERRORS_ONLY"
   }
+}
+
+# Cleanup resource for service networking connection
+resource "null_resource" "service_networking_cleanup" {
+  triggers = {
+    vpc_network_name = google_compute_network.vpc.name
+    project_id       = var.project_id
+  }
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = <<-EOT
+      # Clean up service networking connection peering
+      echo "Cleaning up service networking connection for VPC: ${self.triggers.vpc_network_name}"
+      gcloud services vpc-peerings list \
+        --network=${self.triggers.vpc_network_name} \
+        --project=${self.triggers.project_id} \
+        --format="value(name)" 2>/dev/null | \
+      while read peering; do
+        if [ ! -z "$peering" ]; then
+          echo "Deleting VPC peering: $peering"
+          gcloud services vpc-peerings delete \
+            --network=${self.triggers.vpc_network_name} \
+            --service=servicenetworking.googleapis.com \
+            --project=${self.triggers.project_id} \
+            --quiet || true
+        fi
+      done
+    EOT
+  }
+
+  depends_on = [google_service_networking_connection.private_service_connection]
 }
 
 # Cleanup resource for auto-created VPC Connector resources
