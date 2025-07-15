@@ -18,11 +18,6 @@ variable "artifact_repository_url" {
   type        = string
 }
 
-variable "source_path" {
-  description = "The path to the source code to be built."
-  type        = string
-}
-
 variable "machine_type" {
   description = "The machine type to use for the build."
   type        = string
@@ -35,13 +30,33 @@ variable "image_name" {
   default     = "open-webui"
 }
 
-variable "branch_name" {
-  description = "The branch to build from."
+variable "environment" {
+  description = "Environment name (staging, prod)"
+  type        = string
+
+  validation {
+    condition     = contains(["staging", "prod", "dev"], var.environment)
+    error_message = "Environment must be either 'staging' or 'prod'."
+  }
+}
+
+variable "github_repo_owner" {
+  description = "GitHub repository owner"
+  type        = string
+}
+
+variable "github_repo_name" {
+  description = "GitHub repository name"
+  type        = string
+}
+
+variable "trigger_branch" {
+  description = "Git branch to trigger builds on"
   type        = string
   default     = "main"
 }
 
-variable "github_repo_name" {
-  description = "The name of the GitHub repository."
+variable "cloud_build_service_account_email" {
+  description = "Service account email for Cloud Build"
   type        = string
 }
