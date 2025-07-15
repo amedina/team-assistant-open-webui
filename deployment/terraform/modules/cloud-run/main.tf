@@ -34,7 +34,7 @@ resource "google_cloud_run_v2_service" "open_webui" {
 
     # VPC Connector (mandatory)
     vpc_access {
-      connector = var.vpc_connector_name
+      connector = "projects/${var.project_id}/locations/${var.region}/connectors/${var.vpc_connector_name}"
       egress    = "ALL_TRAFFIC"
     }
 
@@ -107,7 +107,7 @@ resource "google_cloud_run_v2_service" "open_webui" {
         }
       }
 
-      env {
+      /*env {
         name = "AGENT_ENGINE_RESOURCE_ID"
         value_source {
           secret_key_ref {
@@ -115,7 +115,7 @@ resource "google_cloud_run_v2_service" "open_webui" {
             version = "latest"
           }
         }
-      }
+      }*/
 
       # Storage configuration (API-based)
       env {
@@ -150,16 +150,11 @@ resource "google_cloud_run_v2_service" "open_webui" {
         value = var.environment
       }
 
-      env {
-        name  = "PORT"
-        value = "8080"
-      }
-
       # Health check endpoints
       startup_probe {
-        initial_delay_seconds = 30
-        timeout_seconds       = 5
-        period_seconds        = 10
+        initial_delay_seconds = 240
+        timeout_seconds       = 240
+        period_seconds        = 240
         failure_threshold     = 5
 
         http_get {
@@ -169,10 +164,10 @@ resource "google_cloud_run_v2_service" "open_webui" {
       }
 
       liveness_probe {
-        initial_delay_seconds = 30
-        timeout_seconds       = 5
-        period_seconds        = 30
-        failure_threshold     = 3
+        initial_delay_seconds = 1440
+        timeout_seconds       = 240
+        period_seconds        = 240
+        failure_threshold     = 1
 
         http_get {
           path = "/health"
@@ -201,7 +196,8 @@ resource "google_cloud_run_v2_service" "open_webui" {
     var.storage_ready,
     var.database_ready,
     var.redis_ready,
-    var.artifact_registry_ready
+    var.artifact_registry_ready,
+    var.cloud_build_initial_ready
   ]
 }
 

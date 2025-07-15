@@ -260,4 +260,10 @@ variable "port" {
     condition     = var.port >= 1 && var.port <= 65535
     error_message = "Port must be between 1 and 65535."
   }
-} 
+}
+
+variable "cloud_build_initial_ready" {
+  description = "Initial readiness for Cloud Build configuration"
+  type        = bool
+  default     = false
+}
