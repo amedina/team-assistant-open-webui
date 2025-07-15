@@ -20,6 +20,7 @@ resource "google_cloud_run_v2_service" "open_webui" {
   name     = "${var.environment}-open-webui"
   location = var.region
   project  = var.project_id
+  deletion_protection = false
 
   labels = local.common_labels
 
