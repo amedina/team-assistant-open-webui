@@ -42,7 +42,7 @@ resource "google_cloudbuild_trigger" "staging_trigger" {
 
     # Use e2-standard-2 for faster builds
     options {
-      machine_type            = "E2_STANDARD_2"
+      machine_type            = "E2_HIGHCPU_8"
       requested_verify_option = "VERIFIED"
     }
 
@@ -137,7 +137,7 @@ resource "google_cloudbuild_trigger" "production_trigger" {
 
     # Use e2-standard-2 for faster builds
     options {
-      machine_type            = "E2_STANDARD_2"
+      machine_type            = "E2_HIGHCPU_8"
       requested_verify_option = "VERIFIED"
     }
 
