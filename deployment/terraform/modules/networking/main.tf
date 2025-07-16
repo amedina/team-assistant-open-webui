@@ -223,7 +223,7 @@ resource "null_resource" "service_networking_cleanup" {
 
         # If the PEERINGS variable is empty, we are done!
         if [ -z "$PEERINGS" ]; then
-          sleep 60 # Give some time for the cleanup to propagate
+          sleep 120 # Give some time for the cleanup to propagate
           echo "✅ All VPC peerings successfully cleaned up."
           exit 0
         fi
