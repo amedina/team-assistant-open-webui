@@ -194,13 +194,8 @@ module "cloud_build_initial" {
 
   project_id              = var.project_id
   region                  = var.region
-  build_config_path       = "deployment/cloudbuild-initial.yaml"
   artifact_repository_url = module.artifact_registry.repository_url
-  trigger_branch          = var.branch_name
-  github_repo_name        = var.github_repo_name
-  github_repo_owner       = var.github_repo_owner
-  cloud_build_service_account_email = module.iam.cloud_build_service_account_email
-  environment                       = local.environment
+  environment             = local.environment
   depends_on = [module.artifact_registry, module.iam]
 }
 
@@ -252,4 +247,21 @@ module "cloud_run" {
     module.artifact_registry,
     module.cloud_build_initial,
   ]
+}
+
+module "cloud_build" {
+  source = "../../modules/cloud-build"
+
+  project_id             = var.project_id
+  region                 = var.region
+  environment            = local.environment
+  github_repo_owner           = var.github_repo_owner
+  github_repo_name            = var.github_repo_name
+  trigger_branch         = "main" # Use main branch
+  artifact_registry_url  = module.artifact_registry.repository_url
+  cloud_build_service_account_email = module.iam.cloud_build_service_account_email
+  cloud_run_service_account_email   = module.iam.cloud_run_service_account_email
+  vpc_connector_name                = module.networking.vpc_connector_name
+
+  depends_on = [module.artifact_registry, module.iam]
 }
