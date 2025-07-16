@@ -196,7 +196,7 @@ module "cloud_build_initial" {
   region                  = var.region
   artifact_repository_url = module.artifact_registry.repository_url
   environment             = local.environment
-  depends_on = [module.artifact_registry, module.iam]
+  depends_on              = [module.artifact_registry, module.iam]
 }
 
 # Deploy Cloud Run service
@@ -252,13 +252,13 @@ module "cloud_run" {
 module "cloud_build" {
   source = "../../modules/cloud-build"
 
-  project_id             = var.project_id
-  region                 = var.region
-  environment            = local.environment
-  github_repo_owner           = var.github_repo_owner
-  github_repo_name            = var.github_repo_name
-  trigger_branch         = "main" # Use main branch
-  artifact_registry_url  = module.artifact_registry.repository_url
+  project_id                        = var.project_id
+  region                            = var.region
+  environment                       = local.environment
+  github_repo_owner                 = var.github_repo_owner
+  github_repo_name                  = var.github_repo_name
+  trigger_branch                    = var.trigger_branch
+  artifact_registry_url             = module.artifact_registry.repository_url
   cloud_build_service_account_email = module.iam.cloud_build_service_account_email
   cloud_run_service_account_email   = module.iam.cloud_run_service_account_email
   vpc_connector_name                = module.networking.vpc_connector_name
