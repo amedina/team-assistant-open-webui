@@ -202,35 +202,57 @@ resource "google_compute_router_nat" "nat" {
 # Cleanup resource for service networking connection
 resource "null_resource" "service_networking_cleanup" {
   triggers = {
+    # Using triggers ensures these values are available during destroy
     vpc_network_name = google_compute_network.vpc.name
     project_id       = var.project_id
   }
 
   provisioner "local-exec" {
-    when    = destroy
-    command = <<-EOT
-      # Clean up service networking connection peering
-      echo "Cleaning up service networking connection for VPC: ${self.triggers.vpc_network_name}"
+    when        = destroy
+    interpreter = ["bash", "-c"]
+    command     = <<EOT
+      MAX_ATTEMPTS=100
+      SLEEP_SECONDS=10
 
-      # Get all peering names for this network
-      gcloud services vpc-peerings list \
-        --network=${self.triggers.vpc_network_name} \
-        --project=${self.triggers.project_id} \
-        --format="value(name)" 2>/dev/null | \
-      while read peering_name; do
-        if [ ! -z "$peering_name" ]; then
-          echo "Deleting VPC peering: $peering_name"
-          gcloud compute networks peerings delete "$peering_name" \
-            --network=${self.triggers.vpc_network_name} \
-            --project=${self.triggers.project_id} \
-            --quiet || true
+      for i in $(seq 1 $MAX_ATTEMPTS); do
+        # We use 'gcloud compute' to list as it's the direct API for VPC peerings
+        PEERINGS=$(gcloud services vpc-peerings list \
+          --project="${self.triggers.project_id}" \
+          --network="${self.triggers.vpc_network_name}" \
+          --format="value(peering)")
+
+        # If the PEERINGS variable is empty, we are done!
+        if [ -z "$PEERINGS" ]; then
+          sleep 30 # Give some time for the cleanup to propagate
+          echo "✅ All VPC peerings successfully cleaned up."
+          exit 0
         fi
+
+        echo "Attempt $i/$MAX_ATTEMPTS: Found active peerings. Attempting to delete..."
+
+        # Loop through the newline-separated list of peerings
+        echo "$PEERINGS" | while read -r peering_name; do
+          if [ -n "$peering_name" ]; then
+            echo "  - Deleting peering '$peering_name'..."
+            # The '|| true' suppresses errors if a peering is already being deleted
+            gcloud compute networks peerings delete "$peering_name" \
+              --project="${self.triggers.project_id}" \
+              --network="${self.triggers.vpc_network_name}" \
+              --quiet || true
+          fi
+        done
+
+        echo "Waiting $SLEEP_SECONDS seconds before next attempt..."
+        sleep $SLEEP_SECONDS
       done
 
+      # If the script reaches this point, the loop finished without success
+      echo "❌ Error: Failed to delete all VPC peerings after $MAX_ATTEMPTS attempts." >&2
+      exit 1
     EOT
   }
 
-  depends_on = [google_service_networking_connection.private_service_connection]
+  depends_on = [google_compute_network.vpc]
 }
 
 # Cleanup resource for auto-created VPC Connector resources
