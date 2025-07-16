@@ -51,8 +51,8 @@ resource "google_cloudbuild_trigger" "staging_trigger" {
       name = "gcr.io/cloud-builders/docker"
       args = [
         "build",
-        "-t", "${var.artifact_registry_url}:${var.environment}-$SHORT_SHA",
-        "-t", "${var.artifact_registry_url}:${var.environment}-latest",
+        "-t", "${var.artifact_registry_url}/${var.environment}-open-webui:$SHORT_SHA",
+        "-t", "${var.artifact_registry_url}/${var.environment}-open-webui:latest",
         "."
       ]
     }
@@ -61,7 +61,7 @@ resource "google_cloudbuild_trigger" "staging_trigger" {
       name = "gcr.io/cloud-builders/docker"
       args = [
         "push",
-        "${var.artifact_registry_url}:${var.environment}-$SHORT_SHA"
+        "${var.artifact_registry_url}/${var.environment}-open-webui:$SHORT_SHA"
       ]
     }
 
@@ -69,7 +69,7 @@ resource "google_cloudbuild_trigger" "staging_trigger" {
       name = "gcr.io/cloud-builders/docker"
       args = [
         "push",
-        "${var.artifact_registry_url}:${var.environment}-latest"
+        "${var.artifact_registry_url}/${var.environment}-open-webui:latest"
       ]
     }
 
@@ -78,7 +78,7 @@ resource "google_cloudbuild_trigger" "staging_trigger" {
       name = "gcr.io/cloud-builders/gcloud"
       args = [
         "run", "deploy", "${var.environment}-open-webui",
-        "--image", "${var.artifact_registry_url}:${var.environment}-$SHORT_SHA",
+        "--image", "${var.artifact_registry_url}:${var.environment}-open-webui:$SHORT_SHA",
         "--region", var.region,
         "--platform", "managed",
         "--service-account", var.cloud_run_service_account_email,
@@ -146,8 +146,8 @@ resource "google_cloudbuild_trigger" "production_trigger" {
       name = "gcr.io/cloud-builders/docker"
       args = [
         "build",
-        "-t", "${var.artifact_registry_url}:${var.environment}-$TAG_NAME",
-        "-t", "${var.artifact_registry_url}:${var.environment}-latest",
+        "-t", "${var.artifact_registry_url}/${var.environment}-open-webui:$TAG_NAME",
+        "-t", "${var.artifact_registry_url}/${var.environment}-open-webui:latest",
         "."
       ]
     }
@@ -156,7 +156,7 @@ resource "google_cloudbuild_trigger" "production_trigger" {
       name = "gcr.io/cloud-builders/docker"
       args = [
         "push",
-        "${var.artifact_registry_url}:${var.environment}-$TAG_NAME"
+        "${var.artifact_registry_url}/${var.environment}-open-webui:$TAG_NAME"
       ]
     }
 
@@ -164,7 +164,7 @@ resource "google_cloudbuild_trigger" "production_trigger" {
       name = "gcr.io/cloud-builders/docker"
       args = [
         "push",
-        "${var.artifact_registry_url}:${var.environment}-latest"
+        "${var.artifact_registry_url}/${var.environment}-open-webui:latest"
       ]
     }
 
@@ -173,7 +173,7 @@ resource "google_cloudbuild_trigger" "production_trigger" {
       name = "gcr.io/cloud-builders/gcloud"
       args = [
         "run", "deploy", "${var.environment}-open-webui",
-        "--image", "${var.artifact_registry_url}:${var.environment}-$TAG_NAME",
+        "--image", "${var.artifact_registry_url}/${var.environment}-open-webui:$TAG_NAME",
         "--region", var.region,
         "--platform", "managed",
         "--service-account", var.cloud_run_service_account_email,
