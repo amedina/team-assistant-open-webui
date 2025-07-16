@@ -209,12 +209,6 @@ variable "redis_memory_size_gb" {
 }
 
 # GitHub Configuration
-variable "github_connection_id" {
-  description = "GitHub connection ID for Cloud Build"
-  type        = string
-  default     = null
-}
-
 variable "github_repo_owner" {
   description = "GitHub repository owner"
   type        = string
@@ -225,6 +219,17 @@ variable "github_repo_name" {
   description = "GitHub repository name"
   type        = string
   default     = null
+}
+
+variable "trigger_branch" {
+  description = "Git branch to trigger builds on"
+  type        = string
+  default     = "main"
+
+  validation {
+    condition     = can(regex("^[a-zA-Z0-9._-]+$", var.trigger_branch))
+    error_message = "Trigger branch must contain only alphanumeric characters, dots, underscores, and hyphens."
+  }
 }
 
 # Optional Configuration
@@ -262,12 +267,6 @@ variable "force_destroy" {
   description = "Allow destruction of resources with data (use with caution)"
   type        = bool
   default     = false
-}
-
-variable "branch_name" {
-  description = "The branch to build from."
-  type        = string
-  default     = "main"
 }
 
 variable "environment" {
