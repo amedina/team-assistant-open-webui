@@ -81,7 +81,7 @@ resource "google_cloudbuild_trigger" "staging_trigger" {
         "--image", "${var.artifact_registry_url}:${var.environment}-open-webui:$SHORT_SHA",
         "--region", var.region,
         "--platform", "managed",
-        "--service-account", var.cloud_run_service_account_email,
+        "--service-account", "projects/-/serviceAccounts/${var.cloud_build_service_account_email}",
         "--vpc-connector", var.vpc_connector_name,
         "--memory", var.cloud_run_memory,
         "--cpu", var.cloud_run_cpu,
@@ -100,7 +100,7 @@ resource "google_cloudbuild_trigger" "staging_trigger" {
   }
 
   # Service account for Cloud Build
-  service_account = var.cloud_build_service_account_email
+  service_account = "projects/-/serviceAccounts/${var.cloud_build_service_account_email}"
 
   # Include/exclude files
   included_files = var.build_included_files
@@ -176,7 +176,7 @@ resource "google_cloudbuild_trigger" "production_trigger" {
         "--image", "${var.artifact_registry_url}/${var.environment}-open-webui:$TAG_NAME",
         "--region", var.region,
         "--platform", "managed",
-        "--service-account", var.cloud_run_service_account_email,
+        "--service-account", "projects/-/serviceAccounts/${var.cloud_build_service_account_email}",
         "--vpc-connector", var.vpc_connector_name,
         "--memory", var.cloud_run_memory,
         "--cpu", var.cloud_run_cpu,
@@ -195,7 +195,7 @@ resource "google_cloudbuild_trigger" "production_trigger" {
   }
 
   # Service account for Cloud Build
-  service_account = var.cloud_build_service_account_email
+  service_account = "projects/-/serviceAccounts/${var.cloud_build_service_account_email}"
 
   # Include/exclude files
   included_files = var.build_included_files
@@ -262,7 +262,7 @@ resource "google_cloudbuild_trigger" "cleanup_trigger" {
     }
   }
 
-  service_account = var.cloud_build_service_account_email
+  service_account = "projects/-/serviceAccounts/${var.cloud_build_service_account_email}"
 
   depends_on = [
     var.services_ready,
