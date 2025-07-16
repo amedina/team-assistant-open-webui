@@ -42,6 +42,28 @@ resource "google_cloud_run_v2_service" "open_webui" {
     # Service account
     service_account = var.cloud_run_service_account_email
 
+    # Cloud Storage FUSE volumes for persistent storage
+    volumes {
+      name = "app-data-storage"
+      gcs {
+        bucket = var.storage_bucket_name
+      }
+    }
+
+    volumes {
+      name = "uploads-storage"
+      gcs {
+        bucket = var.storage_bucket_name
+      }
+    }
+
+    volumes {
+      name = "cache-storage"
+      gcs {
+        bucket = var.storage_bucket_name
+      }
+    }
+
     containers {
       image = var.container_image_url
       name  = "open-webui"
@@ -60,6 +82,22 @@ resource "google_cloud_run_v2_service" "open_webui" {
       ports {
         name           = "http1"
         container_port = 8080
+      }
+
+      # Volume mounts for persistent storage
+      volume_mounts {
+        name       = "app-data-storage"
+        mount_path = "/app/backend/data"
+      }
+
+      volume_mounts {
+        name       = "uploads-storage"
+        mount_path = "/app/backend/uploads"
+      }
+
+      volume_mounts {
+        name       = "cache-storage"
+        mount_path = "/app/backend/cache"
       }
 
       # Environment variables with secret injection
