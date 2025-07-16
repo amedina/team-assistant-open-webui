@@ -312,5 +312,6 @@ cypress/screenshots
 .terraform*
 .Terraform*
 terraform.tfvars
-/deployment/terraform/environments/staging/terraform.tfstate
-/deployment/terraform/environments/staging/terraform.tfvars.old
+terraform.tfstate
+terraform.tfstate.backup
+terraform.tfvars.old
